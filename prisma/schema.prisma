@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+/// Haus-KI Wissensspeicher (minisearch + lokales TF-IDF, wächst mit jeder Korrektur)
+model AiKnowledgeMemory {
+  id        String   @id @default(uuid())
+  shop      String
+  category  String
+  content   String
+  tokens    String
+  weight    Float    @default(1.0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop, category])
+  @@index([shop])
+}
+
+/// PrecomputedCache für Sidekick-Antworten < 150 ms
+model PrecomputedCache {
+  id        String   @id @default(uuid())
+  shop      String
+  key       String
+  value     Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([shop, key])
+  @@index([shop, key])
+}
+
+/// Mandantenfähigkeit & Baukasten-Monetarisierung
+model ShopSubscription {
+  id                 String    @id @default(uuid())
+  shop               String    @unique
+  plan               String    @default("free_audit")
+  active             Boolean   @default(true)
+  trialEndsAt        DateTime?
+  partnerRef         String?
+  ownerUnlimited     Boolean   @default(false)
+  moduleInvoices     Boolean   @default(false)
+  moduleCertificates Boolean   @default(false)
+  moduleMultichannel Boolean   @default(false)
+  moduleGrowth       Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([shop])
+}
+
+/// Inhaber-Sonderregeln & Brand-DNA (höchste Priorität, überstimmen Standards)
+model CompanyRule {
+  id        String   @id @default(uuid())
+  shop      String
+  key       String
+  value     Json
+  priority  Int      @default(100)
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, key])
+  @@index([shop])
+}
+
+/// GRA-Zertifikate & Digitaler Produktpass (DPP)
+model GraCertificate {
+  id            String   @id @default(uuid())
+  shop          String
+  orderId       String?
+  productId     String?
+  certificateNo String
+  stoneType     String?
+  carat         String?
+  pdfPath       String?
+  qrDppUrl      String?
+  createdAt     DateTime @default(now())
+
+  @@index([shop])
+  @@index([shop, certificateNo])
+}
+
+/// Rechnungen (DE/EN PDF + ZUGFeRD) & DATEV
+model Invoice {
+  id         String    @id @default(uuid())
+  shop       String
+  orderId    String
+  invoiceNo  String
+  amount     String
+  currency   String    @default("EUR")
+  taxMode    String    @default("mwst")
+  pdfPath    String?
+  zugferdXml String?
+  datevRow   String?
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([shop])
+  @@index([shop, invoiceNo])
+}
+
+/// xTool-Laser Studio SVG-Gravurdateien
+model XtoolSvg {
+  id           String    @id @default(uuid())
+  shop         String
+  orderId      String?
+  sku          String?
+  gravurText   String
+  material     String?
+  widthMm      Float?
+  heightMm     Float?
+  fontFamily   String?
+  ringSize     String?
+  svgContent   String?
+  svgPath      String?
+  workshopNote String?
+  status       String    @default("OPEN")
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([shop, status, createdAt])
+}
+
+/// Automatische Backups (täglich 23:00, 30-Tage-Rotation)
+model BackupLog {
+  id        String   @id @default(uuid())
+  shop      String
+  path      String?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  @@index([shop])
+}
+
+/// Autopilot-Live-Protokoll (für Undo / Transparenz)
+model AutopilotLog {
+  id        String    @id @default(uuid())
+  shop      String
+  action    String
+  status    String
+  detail    String?
+  undoable  Boolean   @default(true)
+  undoneAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([shop, createdAt])
+}
+
+/// Webshop / UCP / llms.txt Inhalte (Shop.md / WebMCP Juwelierberater)
+model ShopContent {
+  id        String   @id @default(uuid())
+  shop      String
+  kind      String
+  locale    String   @default("de")
+  title     String?
+  body      String
+  updatedAt DateTime @updatedAt
+
+  @@index([shop, kind, locale])
+}
+
+/// Newsletter / VIP-Concierge & Wiederholungskäufer
+model VipCustomer {
+  id          String    @id @default(uuid())
+  shop        String
+  email       String
+  tier        String    @default("vip")
+  totalSpent  String?
+  lastOrderAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([shop, email])
+}
+
+/// Retouren & Support-Drafts
+model SupportCase {
+  id            String   @id @default(uuid())
+  shop          String
+  orderId       String?
+  customerEmail String
+  topic         String
+  status        String   @default("open")
+  draftBody     String?
+  createdAt     DateTime @default(now())
+
+  @@index([shop, status])
+}
+
+/// Verdienst-Journal pro KI-Mitarbeiter (isSimulated = Potenzial/Dry-Run, false = echt)
+model AgentRevenueEntry {
+  id           String   @id @default(uuid())
+  shop         String
+  agentKey     String
+  departmentId Int
+  amountEur    Float
+  category     String
+  isSimulated  Boolean  @default(false)
+  referenceId  String?
+  description  String?
+  createdAt    DateTime @default(now())
+
+  @@index([shop, agentKey])
+  @@index([shop, createdAt])
+}
+
+/// Protokoll der 3-Stufen-Prüfläufe (auditDomain: LEGAL | FINANCE | CRAFT;
+/// finalStatus: VERIFIED_3X | NEEDS_OWNER_APPROVAL | BLOCKED)
+model TripleAuditLog {
+  id              String   @id @default(uuid())
+  shop            String
+  auditDomain     String
+  sourceAgentKey  String
+  pass1AuditorKey String
+  pass1Status     String
+  pass2AuditorKey String
+  pass2Status     String
+  chiefAuditorKey String
+  finalStatus     String
+  findingsSummary String?
+  createdAt       DateTime @default(now())
+
+  @@index([shop, createdAt])
+  @@index([shop, sourceAgentKey])
+}
+
+/// Unendliche KI-Fabrik ab #221 (status: CANDIDATE | ACTIVE | PAUSED)
+model DynamicAiAgent {
+  id                      String   @id @default(uuid())
+  shop                    String
+  agentNumber             Int
+  name                    String
+  departmentId            Int
+  level                   Int      @default(5)
+  reportsToId             String?
+  mission                 String
+  revenueMechanism        String
+  systemPrompt            String
+  suggestedAddonPriceEur  Float    @default(0)
+  status                  String   @default("CANDIDATE")
+  autoSpawnedReason       String?
+  expectedMonthlyValueEur Float    @default(0)
+  createdAt               DateTime @default(now())
+
+  @@unique([shop, agentNumber])
+  @@index([shop, status])
+}
+
+/// Selbst-Weiterentwicklung v1 -> v2 -> v3 mit Rollback
+model AgentSkillEvolution {
+  id                 String   @id @default(uuid())
+  shop               String
+  agentKey           String
+  skillVersion       Int
+  learnedInsights    String
+  successScore       Float
+  previousPromptHint String?
+  evolvedPromptHint  String
+  createdAt          DateTime @default(now())
+
+  @@index([shop, agentKey, createdAt])
+}
+
+/// 1-Klick-Freigabe-Warteschlange (status: PENDING | APPROVED | REJECTED)
+model ApprovalQueueItem {
+  id                 String   @id @default(uuid())
+  shop               String
+  sourceAgentKey     String
+  category           String
+  title              String
+  summary            String
+  financialImpactEur Float    @default(0)
+  riskLevel          String   @default("MEDIUM")
+  payloadJson        String   @default("{}")
+  status             String   @default("PENDING")
+  createdAt          DateTime @default(now())
+
+  @@index([shop, status, createdAt])
+}
+
+/// § 7 Abs. 3 UWG: Abmelde-Blacklist (nur SHA-256-Hash der E-Mail, keine Klartext-Adresse)
+model EmailBlacklist {
+  id        String   @id @default(uuid())
+  shop      String
+  emailHash String
+  reason    String   @default("unsubscribe")
+  createdAt DateTime @default(now())
+
+  @@unique([shop, emailHash])
+  @@index([shop])
+}
+
+/// Digitale Geschenk-Botschaft (Auspack-Überraschungsseite /gift/:token)
+model GiftMessage {
+  id            String    @id @default(uuid())
+  shop          String
+  token         String    @unique
+  senderName    String
+  recipientName String
+  message       String
+  productTitle  String
+  certificateNo String?
+  isUnique      Boolean   @default(false)
+  locale        String    @default("de")
+  viewedAt      DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([shop, createdAt])
+}
+
+/// Nachweis eines ausdrücklich vom Händler verifizierten WhatsApp-Opt-ins.
+/// Die Telefonnummer wird nur gehasht gespeichert.
+model WhatsAppConsent {
+  id            String    @id @default(uuid())
+  shop          String
+  phoneHash     String
+  source        String
+  consentedAt   DateTime  @default(now())
+  revokedAt     DateTime?
+  lastAttemptAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([shop, phoneHash])
+  @@index([shop, revokedAt])
+}
+
+/// WhatsApp-Audit ohne Klartext-Telefonnummer.
+model WhatsAppMessageLog {
+  id                String   @id @default(uuid())
+  shop              String
+  phoneHash         String
+  phoneMasked       String
+  templateName      String
+  status            String
+  providerMessageId String?
+  errorCode         String?
+  createdAt         DateTime @default(now())
+
+  @@index([shop, phoneHash, createdAt])
+}
+
+/// Bankabgleich: keine IBAN und kein Klartext-Verwendungszweck werden gespeichert.
+model PaymentLedgerEntry {
+  id             String    @id @default(uuid())
+  shop           String
+  rowHash        String
+  sourceFileHash String
+  invoiceId      String?
+  amount         Float
+  currency       String
+  status         String
+  feeDelta       Float?
+  transactionAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([shop, rowHash])
+  @@index([shop, status, createdAt])
+}
+
+/// Händlerverwaltete Vorteile/Erstattungs-Prüffälle; kein Wallet oder Zahlungskonto.
+model CapturedReward {
+  id                 String   @id @default(uuid())
+  shop               String
+  type               String
+  title              String
+  sourceLabel        String?
+  sourceUrl          String?
+  sourceRef          String?
+  estimatedValueEur  Float?
+  actualValueEur     Float?
+  productCount       Int?
+  receivedQuantity   Int?
+  code               String?
+  evidence           String?
+  requestDraft       String?
+  status             String   @default("REVIEW")
+  requestedAt        DateTime?
+  receivedAt         DateTime?
+  accountingReview   String   @default("OPEN")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([shop, sourceRef])
+  @@index([shop, status, createdAt])
+  @@index([shop, type, status])
+}

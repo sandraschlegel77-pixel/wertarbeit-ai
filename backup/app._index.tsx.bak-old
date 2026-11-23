@@ -1,0 +1,282 @@
+﻿import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
+import {
+  useFetcher,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
+import { authenticate } from "../shopify.server";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import db from "../db.server";
+import { aiMemory } from "../lib/ai-memory.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const [subscription, rules, recentLogs, vips] = await Promise.all([
+    db.shopSubscription.findUnique({ where: { shop } }),
+    db.companyRule.findMany({ where: { shop }, take: 20 }),
+    db.autopilotLog.findMany({
+      where: { shop },
+      take: 20,
+      orderBy: { createdAt: "desc" },
+    }),
+    db.vipCustomer.findMany({ where: { shop }, take: 5 }),
+  ]);
+
+  return {
+    shop,
+    subscription: subscription ?? null,
+    rules,
+    recentLogs,
+    vipCount: vips.length,
+  };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const form = await request.formData();
+  const type = form.get("type");
+
+  if (type === "add_rule") {
+    const key = form.get("key");
+    const value = form.get("value");
+    if (typeof key === "string" && typeof value === "string") {
+      await db.companyRule.upsert({
+        where: { shop_key: { shop, key } },
+        update: { value, updatedAt: new Date() },
+        create: { shop, key, value },
+      });
+    }
+    return { ok: true };
+  }
+
+  if (type === "toggle_tax") {
+    const taxMode = form.get("taxMode") as string;
+    await db.companyRule.upsert({
+      where: { shop_key: { shop, key: "tax_mode" } },
+      update: { value: taxMode, updatedAt: new Date() },
+      create: { shop, key: "tax_mode", value: taxMode },
+    });
+    return { ok: true };
+  }
+
+  return { ok: false, error: "unknown type" };
+};
+import { useState, type FormEvent } from "react";
+
+export default function AppIndex() {
+  const data = useLoaderData<typeof loader>()!;
+  const fetcher = useFetcher<typeof action>();
+  const [demoMode, setDemoMode] = useState(false);
+  const [step, setStep] = useState(0);
+  const [ruleKey, setRuleKey] = useState("");
+  const [ruleValue, setRuleValue] = useState("");
+
+  const handleAddRule = (e: FormEvent) => {
+    e.preventDefault();
+    fetcher.submit(new FormData(e.currentTarget as HTMLFormElement));
+  };
+
+  const handleTaxChange = (e: any) => {
+    fetcher.submit(
+      new URLSearchParams({ type: "toggle_tax", taxMode: String(e.currentTarget.value) })
+    );
+  };
+
+  const MODULES = [
+    { key: "moduleInvoices", label: "Rechnungen & ZUGFeRD" },
+    { key: "moduleCertificates", label: "GRA-Zertifikate & DPP" },
+    { key: "moduleMultichannel", label: "Multichannel-Sync" },
+    { key: "moduleGrowth", label: "Growth-Concierge" },
+  ] as const;
+
+  return (
+    <s-page heading="AtelierPilot AI">
+      <s-button slot="primary-action" onClick={() => {}}>
+        Jetzt in Sidekick starten
+      </s-button>
+
+      {/* ---------- Autopilot & Sonderregeln-Zentrale ---------- */}
+      <s-section heading="Autopilot & Sonderregeln-Zentrale">
+        <s-card>
+          <s-badge>99 % Voll-Autopilot AKTIV</s-badge>
+          <s-paragraph>
+            Alle sicheren Aufgaben (Listing, Bilder, Übersetzungen,
+            Marktplatz-Sync, Backups) laufen 24/7 vollautomatisch.
+          </s-paragraph>
+
+          <form onSubmit={handleAddRule}>
+            <s-text-field
+              label="Inhaber-Sonderregel (Schlüssel)"
+              name="key"
+              value={ruleKey}
+              onChange={(e) =>
+                setRuleKey((e.target as HTMLInputElement).value)
+              }
+            />
+            <s-text-field
+              label="Wert"
+              name="value"
+              value={ruleValue}
+              onChange={(e) =>
+                setRuleValue((e.target as HTMLInputElement).value)
+              }
+            />
+            <s-button type="submit">Regel speichern</s-button>
+          </form>
+
+          <form onSubmit={(e) => e.preventDefault()}>
+            <s-select
+              label="Steuer-Modus"
+              name="taxMode"
+              value="mwst"
+              onChange={handleTaxChange}
+            >
+              <option value="mwst">MwSt. (Regelbesteuerung)</option>
+              <option value="kleinunternehmer">
+                Kleinunternehmer § 19 UStG
+              </option>
+            </s-select>
+          </form>
+
+          <s-paragraph>
+            <s-text>
+              <strong>Warnung statt Blockieren:</strong> Automatische Aktionen
+              können mit "[Trotzdem ausführen (Override)]" bestätigt und mit
+              "1-Klick-Rückgängig" widerrufen werden.
+            </s-text>
+          </s-paragraph>
+
+          <s-paragraph>
+            <s-text><strong>Live-Protokoll:</strong></s-text>
+            <ul>
+              {data.recentLogs.map((log) => (
+                <li key={log.id}>
+                  {log.action} — {log.status}{log.detail ? ` (${log.detail})` : ""}
+                </li>
+              ))}
+            </ul>
+          </s-paragraph>
+        </s-card>
+      </s-section>
+
+
+      {/* ---------- 3-Schritt-Onboarding + Demo-Modus ---------- */}
+      <s-section heading="30-Sekunden-Sofort-Scan (Onboarding)">
+        <s-card>
+          <s-paragraph>Schritt {step + 1} von 3</s-paragraph>
+          <s-button onClick={() => setStep((s) => (s < 2 ? s + 1 : 0))}>
+            Weiter
+          </s-button>
+          <s-button
+            onClick={() => setDemoMode((m) => !m)}
+            variant={demoMode ? "primary" : "tertiary"}
+          >
+            {demoMode ? "Demo-Modus aus" : "App-Store Live-Demo-Modus"}
+          </s-button>
+          {demoMode && (
+            <s-paragraph>Live-Demo aktiv (Daten sind Beispiel-Daten).</s-paragraph>
+          )}
+        </s-card>
+      </s-section>
+
+      {/* ---------- Live-ROI & Zeitersparnis ---------- */}
+      <s-section heading="Live-ROI & Zeitersparnis">
+        <s-card>
+          <s-stack direction="inline" gap="base">
+            <s-card>
+              <s-paragraph>
+                <strong>0 h</strong> gesparte Arbeitszeit (heute)
+              </s-paragraph>
+            </s-card>
+            <s-card>
+              <s-paragraph>
+                <strong>0 €</strong> Zusatzumsatz (geschätzt)
+              </s-paragraph>
+            </s-card>
+            <s-card>
+              <s-paragraph><strong>0 €</strong> gesparte App-Kosten</s-paragraph>
+            </s-card>
+          </s-stack>
+          <s-paragraph>
+            Haus-KI Lernfortschritt:{data.recentLogs.length} Einträge gelernt.
+          </s-paragraph>
+        </s-card>
+      </s-section>
+
+      {/* ---------- 6 KI-Mitarbeiter ---------- */}
+      <s-section heading="Status-Karten der 6 KI-Mitarbeiter">
+        <s-stack direction="inline" gap="base">
+          {[
+            "Auto-Listing",
+            "Medien-Studio",
+            "Multichannel-Sync",
+            "Finanzen & Pricing",
+            "GRA-Zertifikate",
+            "Concierge",
+          ].map((name) => (
+            <s-card key={name}>
+              <s-paragraph>
+                <strong>{name}</strong>
+              </s-paragraph>
+              <s-paragraph>Bereit</s-paragraph>
+              <s-button>In Sidekick starten</s-button>
+            </s-card>
+          ))}
+        </s-stack>
+      </s-section>
+
+      {/* ---------- Baustein-Kacheln (Monetarisierung) ---------- */}
+      <s-section heading="Bausteine & Module">
+        <s-card>
+          <s-stack direction="inline" gap="base">
+            {MODULES.map((mod) => {
+              const active =
+                data.subscription?.[mod.key] ?? false;
+              return (
+                <s-card key={mod.key}>
+                  <s-paragraph>
+                    <strong>{mod.label}</strong>{" "}
+                    {active ? <s-badge>Aktiv</s-badge> : <s-badge>Inaktiv</s-badge>}
+                  </s-paragraph>
+                  <s-button>In Sidekick starten</s-button>
+                </s-card>
+              );
+            })}
+          </s-stack>
+        </s-card>
+      </s-section>
+
+      {/* ---------- Tresor-Ansicht ---------- */}
+      <s-section heading="Tresor">
+        <s-card>
+          <s-paragraph>
+            1-Klick-Download für Rechnungen, GRA-Zertifikate &
+            xTool-SVG-Gravurdateien.
+          </s-paragraph>
+          <s-stack direction="inline" gap="base">
+            <s-button>Rechnung herunterladen (PDF)</s-button>
+            <s-button>GRA-Zertifikat herunterladen</s-button>
+            <s-button>xTool-SVG herunterladen</s-button>
+          </s-stack>
+          <s-paragraph>
+            Partner-Empfehlungs-Link:{`https://wertarbeitmanufaktur.com/?ref=${data.shop}`}
+          </s-paragraph>
+          <s-paragraph>
+            <s-text>⭐⭐⭐⭐⭐ 5-Sterne-Bewertungsbanner</s-text>
+          </s-paragraph>
+        </s-card>
+      </s-section>
+    </s-page>
+  );
+}
+
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
