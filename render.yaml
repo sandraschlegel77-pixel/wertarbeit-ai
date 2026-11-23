@@ -1,7 +1,6 @@
 # Render.com Blueprint (24/7-Hosting). Geheimnisse (sync: false) trägst du im Render-Dashboard ein.
-# Hinweis Kosten: Der Free-Plan schläft nach Inaktivität ein und hat KEINE persistente Disk –
-# der Cron-Ping (cron-job.org alle 5 Min. auf /api/cron) hält ihn wach, SQLite-Daten gehen dort aber bei
-# jedem Neustart verloren. Für dauerhafte Daten: Neon-PostgreSQL (Gratis) oder bezahlter Plan mit Disk.
+# Hinweis: Render Free hat keine persistente Disk. App-Datenbank daher extern über DATABASE_URL
+# anbinden (z. B. PostgreSQL); die App-Dateien auf dem Render-Dateisystem sind flüchtig.
 services:
   - type: web
     name: atelierpilot-ai
@@ -20,6 +19,8 @@ services:
         value: "true"
       - key: BILLING_LIVE
         value: "false"
+      - key: DATABASE_URL
+        sync: false
       - key: SHOPIFY_API_KEY
         sync: false
       - key: SHOPIFY_API_SECRET

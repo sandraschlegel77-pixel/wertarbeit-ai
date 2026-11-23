@@ -38,6 +38,7 @@ for (const key of SECRETS) {
 const defaults = {
   OWNER_SHOP_DOMAIN: "wertarbeitmanufaktur.myshopify.com",
   DRY_RUN_MODE: "true",
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/atelierpilot?schema=public",
   PORT: "3000",
 };
 for (const [k, v] of Object.entries(defaults)) {
@@ -58,7 +59,7 @@ SCOPES="read_products,write_products,read_orders,write_orders,read_inventory,wri
 OWNER_SHOP_DOMAIN="wertarbeitmanufaktur.myshopify.com"
 DRY_RUN_MODE="true"
 BILLING_LIVE="false"
-DATABASE_URL="file:dev.sqlite"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/atelierpilot?schema=public"
 PORT="3000"
 
 # Geheimnisse (mind. 16 Zeichen, am besten 32 – erzeugt: node scripts/ensure-env.mjs)

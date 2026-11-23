@@ -143,7 +143,7 @@ Vorgesehener Überlebens-Watchdog: Latenz, RAM, DB-Verfügbarkeit und API-Quoten
 - Produktionsschema soll `provider = "postgresql"` und `url = env("DATABASE_URL")` verwenden; optional getrennte `DIRECT_URL` nur bei sauberer Prisma-Konfiguration.
 - Erwartete Variablen: `DATABASE_URL` (TLS/SSL erforderlich), optional `DIRECT_URL`. Pooler-Parameter (`-pooler`, `pgbouncer`, `connect_timeout`) nach Prisma-Version und Neon-Verbindungstyp validieren; keine pauschale URL übernehmen.
 - Vor Migration: DB-Snapshot/Backup, Schema-Validierung, SQLite→PostgreSQL-Kompatibilität und Wiederherstellung testen. `prisma db push` nur nach Prüfung des Zielsystems; es ersetzt keine geplante Produktionsmigration.
-- Prisma-Entwicklungs-SQLite und Cloud-PostgreSQL klar trennen. `PRAGMA journal_mode=WAL` und `busy_timeout` gelten nur für SQLite, nicht für Neon PostgreSQL.
+- Das App-Schema verwendet PostgreSQL über `DATABASE_URL`; auch lokale Entwicklung benötigt daher eine erreichbare PostgreSQL-Instanz. SQLite-Dateien sind keine unterstützte Laufzeitdatenbank dieses Schemas.
 
 ### Persistenz und Backups
 
@@ -445,7 +445,7 @@ Diese Sektion beschreibt die Copilot-Codeänderungen vom 23.11.2026 nach der obi
 
 Der Build gibt fünf React-Router-v8-Future-Flag-Hinweise aus. Diese Validierung beinhaltet keinen Live-Aufruf von OpenRouter, keinen echten E-Mail-Versand, keinen Test mit einem Shopify-Produktivshop und keinen Render-/Neon-Deploy. Der statische App-Store-Check ist keine Rechts- oder App-Store-Freigabe.
 
-**Release-Blocker bleiben bestehen:** vollständige Fachprüfung der Datenschutzhinweise, vollständige Datenexport-/Löschpfade, Neon/PostgreSQL statt SQLite, produktive Shopify-URLs, echte Mail-/Shop-Tests und die noch unvollständigen Sidekick-Handler. Ein grüner Typecheck und Build können diese Produkt-/Compliance-Blocker nicht aufheben.
+**Release-Blocker bleiben bestehen:** vollständige Fachprüfung der Datenschutzhinweise, vollständige Datenexport-/Löschpfade, eine provisionierte und getestete Neon/PostgreSQL-Verbindung samt geprüftem Migrations-/Restore-Plan, produktive Shopify-URLs, echte Mail-/Shop-Tests und die noch unvollständigen Sidekick-Handler. Ein grüner Typecheck und Build können diese Produkt-/Compliance-Blocker nicht aufheben.
 
 ## 18. Betreiberangaben von der Nutzerin erhalten
 
@@ -469,4 +469,10 @@ Telefonnummer, gegebenenfalls Register-/Vertretungsangaben, Datenschutzbeauftrag
 - Werkstattentwürfe können in einer shopbezogenen `localStorage`-Warteschlange vorgemerkt und manuell ins vorhandene Formular geladen werden. Die Daten liegen unverschlüsselt im jeweiligen Browser, werden nicht automatisch synchronisiert und sollen keine personenbezogenen Daten enthalten.
 - Neue Fachgebiets-Agenten aus der Oberfläche werden zunächst als Kandidaten angelegt; sie starten nicht automatisch. Skill-Rollbacks bleiben auf die vorhandenen Evolutionsdatensätze begrenzt.
 - Individuelle PDF-/DATEV-/Chargeback-/DPP-Downloads und der Brand-Customizer sind weiterhin nicht implementiert: `VaultDocument` und `ShopSettings` fehlen im Prisma-Schema, und die vorhandenen Datensätze enthalten nicht alle für rechtlich korrekte Dokumente erforderlichen Quelldaten. Vorhandene xTool-Tagespakete bleiben über den authentifizierten ZIP-Endpunkt verfügbar. Keine Platzhalterdatei wird als echter Beleg ausgegeben.
+
+## 20. Prisma-Datasource auf PostgreSQL umgestellt
+
+- `prisma/schema.prisma` verwendet jetzt `provider = "postgresql"` und `url = env("DATABASE_URL")`.
+- `.env.example` und `scripts/ensure-env.mjs` enthalten einen lokalen PostgreSQL-Beispielwert; `render.yaml` erwartet `DATABASE_URL` als extern gesetztes Geheimnis.
+- Damit ist nur der Prisma-Client-/Schema-Provider umgestellt. Es wurde keine Datenbank bereitgestellt, kein SQLite-Datenbestand migriert und kein `prisma db push` oder Cloud-Deploy ausgeführt. Vor dem Start ist `DATABASE_URL` auf eine erreichbare PostgreSQL-Instanz zu setzen und ein geprüfter Backup-/Migrations-/Restore-Ablauf erforderlich.
 

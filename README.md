@@ -79,12 +79,12 @@ For more information on the Shopify Dev MCP please read [the documentation](http
 
 ### Application Storage
 
-This template uses [Prisma](https://www.prisma.io/) to store session data, by default using an [SQLite](https://www.sqlite.org/index.html) database.
-The database is defined as a Prisma schema in `prisma/schema.prisma`.
+This app uses [Prisma](https://www.prisma.io/) with PostgreSQL for session and application data.
+The datasource is defined in `prisma/schema.prisma` and reads its connection string from `DATABASE_URL`.
+Set `DATABASE_URL` to a reachable PostgreSQL database for local development and deployment; Render's
+filesystem is not persistent, so do not use a local SQLite file for production data.
 
-This use of SQLite works in production if your app runs as a single instance.
-The database that works best for you depends on the data your app needs and how it is queried.
-Here’s a short list of databases providers that provide a free tier to get started:
+PostgreSQL providers with free tiers include:
 
 | Database   | Type             | Hosters                                                                                                                                                                                                                                    |
 | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
