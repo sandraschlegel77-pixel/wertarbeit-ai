@@ -24,6 +24,7 @@ import { LiveShow } from "../components/dashboard/LiveShow";
 import { OwnerDirectiveBar } from "../components/dashboard/OwnerDirectiveBar";
 import { DomainInfoButton } from "../components/dashboard/DomainInfoButton";
 import { GlobalQuickJump } from "../components/dashboard/GlobalQuickJump";
+import { ExecutiveCommandWheel } from "../components/dashboard/ExecutiveCommandWheel";
 import { useCoinRain } from "../components/monitor/CoinRain";
 import { DEPARTMENTS } from "../services/agent-roster";
 import { LEGAL_RULE_PROFILES } from "../services/legal-tax-core";
@@ -46,6 +47,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 const VIEWS = [
+  { id: "cockpit", label: "Executive Cockpit" },
   { id: "command", label: "Kommandozentrale" },
   { id: "board", label: "Lebendes Organigramm" },
   { id: "desk", label: "1-Klick-Tisch #220" },
@@ -246,6 +248,7 @@ export default function AppIndex() {
     Number(d.platformConnectors.whatsAppConfigured) +
     Object.values(d.platformConnectors.feedUrls).filter(Boolean).length;
   const jumpCounts: Record<ViewId, number> = {
+    cockpit: d.liveTraces.length,
     command: d.preparationDesk.pendingCount,
     board: d.allowedDepartmentIds.length,
     desk: d.preparationDesk.pendingCount,
@@ -443,6 +446,9 @@ export default function AppIndex() {
                 <MerchantOnboarding owner inventory={d.inventory} inventoryIsLive={!d.demoInventory} onClose={() => setOnboardingOpen(false)} />
               )}
             </>
+          )}
+          {view === "cockpit" && (
+            <ExecutiveCommandWheel initialTraces={[]} executivePulse={d.executivePulse} />
           )}
           {view === "board" && (
             <Suspense fallback={<div role="status">Die interaktive Firmen-Platine wird geladen…</div>}>
