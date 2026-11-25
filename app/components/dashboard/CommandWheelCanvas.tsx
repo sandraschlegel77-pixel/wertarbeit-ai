@@ -1,6 +1,6 @@
 /**
- * CommandWheelCanvas — Pixelgenaues Command-Rad (SVG viewBox="0 0 760 620").
- * Innerer Kern + 10 emerald-gold Kreise im 36°-Winkel mit animierten Lichtimpulsen.
+ * CommandWheelCanvas — Pixelgenaues Command-Rad (SVG viewBox="0 0 1200 900").
+ * Innerer Kern + 10 emerald-gold Kreise im 36°-Winkel (horizontal 0°) mit animierten Lichtimpulsen.
  */
 import { useEffect, useRef, useState } from "react";
 import type { AgentDef } from "../../services/agent-types";
@@ -20,11 +20,11 @@ const DEPARTMENTS = [
   { number: 10, name: "Procurement", label: "10. Procurement", key: "dept10" },
 ] as const;
 
-const CENTER_X = 380;
-const CENTER_Y = 310;
-const INNER_R = 108;
-const DEPT_R = 200;
-const DEPT_CIRCLE_R = 42;
+const CENTER_X = 600;
+const CENTER_Y = 450;
+const INNER_R = 140;
+const DEPT_R = 320;
+const DEPT_CIRCLE_R = 52;
 
 interface CommandWheelCanvasProps {
   initialTraces: Array<{ channelKey: string; agentKey: string | null; eventType: string; outcome: string }>;
@@ -65,7 +65,7 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
     setActiveTraceAgents(keys);
   }, [initialTraces]);
 
-  const getDeptAngle = (index: number) => -90 + index * 36;
+  const getDeptAngle = (index: number) => index * 36;
 
   const getDeptPosition = (index: number) => {
     const angle = getDeptAngle(index);
@@ -138,10 +138,10 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
       >
         <svg
           ref={svgRef}
-          viewBox="0 0 760 620"
+          viewBox="0 0 1200 900"
           width="100%"
           height="100%"
-          style={{ maxWidth: "900px", maxHeight: "620px", display: "block" }}
+          style={{ maxWidth: "1100px", maxHeight: "750px", display: "block" }}
         >
           <defs>
             <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
@@ -208,55 +208,55 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           {/* Kern-Text */}
           <text
             x={CENTER_X}
-            cy={CENTER_Y - 24}
+            y={CENTER_Y - 38}
             textAnchor="middle"
             fill="#D4AF37"
             fontWeight="800"
-            fontSize="13"
+            fontSize="14"
             letterSpacing="0.5"
           >
-            ÜBERGEORDNETE META-KI
+            AETHERION OMEGA // X-18
           </text>
           <text
             x={CENTER_X}
-            y={CENTER_Y - 8}
+            y={CENTER_Y - 18}
             textAnchor="middle"
             fill="#E2E8F0"
             fontWeight="700"
             fontSize="13"
             letterSpacing="0.2"
           >
-            (Hypervisor)
+            (Meta-KI)
           </text>
           <text
             x={CENTER_X}
-            y={CENTER_Y + 10}
+            y={CENTER_Y + 6}
             textAnchor="middle"
             fill="#D4AF37"
             fontWeight="800"
-            fontSize="15"
+            fontSize="18"
             letterSpacing="0.2"
           >
             Master-Orchestrator
           </text>
           <text
             x={CENTER_X}
-            y={CENTER_Y + 26}
+            y={CENTER_Y + 30}
             textAnchor="middle"
             fill="#E2E8F0"
             fontWeight="600"
-            fontSize="11"
+            fontSize="12"
             letterSpacing="0.2"
           >
             (CEO-Agent)
           </text>
           <text
             x={CENTER_X}
-            y={CENTER_Y + 44}
+            y={CENTER_Y + 54}
             textAnchor="middle"
             fill="#2DD4BF"
             fontWeight="700"
-            fontSize="11"
+            fontSize="13"
             letterSpacing="0.3"
           >
             CONSTITUTIONAL CORE (0,00 €)
@@ -344,8 +344,8 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           style={{
             position: "absolute",
             right: 20,
-            top: 60,
-            width: 300,
+            bottom: 20,
+            width: 340,
             display: "flex",
             flexDirection: "column",
             gap: 16,
