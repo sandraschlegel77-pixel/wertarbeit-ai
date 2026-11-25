@@ -1,10 +1,11 @@
-/**
- * SingularityShell — unveränderlicher Rahmen um die gesamte App.
- * Enthält Top-Bar, linke Navigation, rechte Inspektor-Spalte und untere Debugger-Leiste.
+﻿/**
+ * SingularityShell â€” unverÃ¤nderlicher Rahmen um die gesamte App.
+ * EnthÃ¤lt Top-Bar, linke Navigation, rechte Inspektor-Spalte und untere Debugger-Leiste.
  */
 import { useCallback } from "react";
 import {
   Breadcrumb,
+  FixedOverlay,
   INVESTMENT_LEVELS,
   InvestmentLevel,
   ShellNavigationItem,
@@ -12,8 +13,7 @@ import {
   SINGULARITY_COLORS,
 } from "./SingularityPrimitives";
 
-const SINGULARITY_GRADIENT_GOLD =
-  "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)";
+const SINGULARITY_GRADIENT_GOLD = "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)";
 
 export function SingularityShell(props: ShellProps) {
   const {
@@ -47,7 +47,6 @@ export function SingularityShell(props: ShellProps) {
 
   return (
     <div className="sg-root" style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      {/* TOP BAR */}
       <header
         style={{
           display: "flex",
@@ -75,7 +74,6 @@ export function SingularityShell(props: ShellProps) {
         />
       </header>
 
-      {/* BREADCRUMB BAR */}
       <div
         style={{
           padding: "6px 16px",
@@ -87,7 +85,6 @@ export function SingularityShell(props: ShellProps) {
         <Breadcrumb items={breadcrumbItems} />
       </div>
 
-      {/* MAIN LAYER */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <LeftNav navItems={navItems} />
         <main style={{ flex: 1, overflow: "auto", position: "relative", minWidth: 0 }}>
@@ -99,7 +96,6 @@ export function SingularityShell(props: ShellProps) {
         />
       </div>
 
-      {/* UNTERE LEISTE */}
       <FooterBar
         liveTracesCount={liveTracesCount}
         latencyMs={latencyMs}
@@ -109,10 +105,89 @@ export function SingularityShell(props: ShellProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Window Dots (Top Bar)
-// ---------------------------------------------------------------------------
+function LeftNav({ navItems }: { navItems: ShellNavigationItem[] }) {
+  return (
+    <aside
+      style={{
+        width: 260,
+        background: "rgba(11, 14, 20, 0.92)",
+        borderRight: `1px solid ${SINGULARITY_COLORS.line}`,
+        display: "flex",
+        flexDirection: "column",
+        overflowY: "auto",
+        zIndex: 40,
+      }}
+    >
+      <nav style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "14px 16px",
+              background: item.active
+                ? SINGULARITY_GRADIENT_GOLD
+                : "rgba(16, 22, 33, 0.6)",
+              color: item.active ? SINGULARITY_COLORS.goldText : SINGULARITY_COLORS.champagne,
+              border: `1px solid ${SINGULARITY_COLORS.goldRing}`,
+              borderRadius: 10,
+              fontWeight: 700,
+              fontSize: 13,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (!item.active) {
+                e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
+                e.currentTarget.style.borderColor = SINGULARITY_COLORS.emerald;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!item.active) {
+                e.currentTarget.style.background = "rgba(16, 22, 33, 0.6)";
+                e.currentTarget.style.borderColor = SINGULARITY_COLORS.goldRing;
+              }
+            }}
+            onClick={item.onClick}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <div style={{ padding: 16, borderTop: `1px solid ${SINGULARITY_COLORS.line}` }}>
+        <button
+          type="button"
+          style={{
+            width: "100%",
+            textAlign: "left",
+            padding: "12px 14px",
+            background: "rgba(45, 212, 191, 0.1)",
+            color: SINGULARITY_COLORS.emerald,
+            border: `1px solid ${SINGULARITY_COLORS.emerald}`,
+            borderRadius: 10,
+            fontWeight: 700,
+            fontSize: 11,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            cursor: "pointer",
+            marginBottom: 8,
+          }}
+          onClick={() => {}}
+        >
+          OPEN-SOURCE MCP TOOLS (0,00 â‚¬)
+        </button>
+        <div style={{ fontSize: 10, color: SINGULARITY_COLORS.muted, lineHeight: 1.4 }}>
+          Aktive MCP-Server werden live gepingt und kÃ¶nnen im Sektor
+          "Infrastruktur & Business" getestet werden.
+        </div>
+      </div>
+    </aside>
+  );
+}
 
 function WindowDots() {
   return (
@@ -132,10 +207,6 @@ function WindowDots() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Title Bar (Top Bar Center-Left)
-// ---------------------------------------------------------------------------
-
 function TitleBar() {
   return (
     <div style={{ flex: 1, minWidth: 200, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
@@ -151,15 +222,11 @@ function TitleBar() {
         }}
       >
         AETHERION OMEGA // X-18
-        Sovereign Enterprise OS · Engineered by Wertarbeit AI
+        Sovereign Enterprise OS Â· Engineered by Wertarbeit AI
       </span>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Center Controls
-// ---------------------------------------------------------------------------
 
 function CenterControls({
   killSwitchActive,
@@ -235,10 +302,6 @@ function CenterControls({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Right Controls (Investment + Live ROI)
-// ---------------------------------------------------------------------------
-
 function RightControls({
   levelInfo,
   investmentLevel,
@@ -256,7 +319,7 @@ function RightControls({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260, flexWrap: "wrap" }}>
       <div
         style={{
           background: SINGULARITY_GRADIENT_GOLD,
@@ -269,6 +332,8 @@ function RightControls({
           boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
           cursor: "pointer",
           whiteSpace: "nowrap",
+          pointerEvents: "auto",
+          zIndex: 30,
         }}
         onClick={handleCycle}
         title="Investitionsstufe wechseln"
@@ -285,115 +350,41 @@ function RightControls({
           padding: "4px 8px",
           border: `1px solid ${SINGULARITY_COLORS.emerald}`,
           borderRadius: 6,
+          pointerEvents: "auto",
+          zIndex: 30,
         }}
         onClick={() => {}}
-        title="LIVE ROI & QUALITÄT umschalten"
+        title="LIVE ROI & QUALITÃ„T umschalten"
       >
-        LIVE ROI &amp; QUALITÄT
+        LIVE ROI &amp; QUALITÃ„T
       </div>
+      <button
+        type="button"
+        style={{
+          background: SINGULARITY_GRADIENT_GOLD,
+          color: SINGULARITY_COLORS.goldText,
+          padding: "8px 12px",
+          borderRadius: 10,
+          fontWeight: 800,
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          border: "none",
+          cursor: "pointer",
+          pointerEvents: "auto",
+          zIndex: 30,
+          boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
+          whiteSpace: "nowrap",
+        }}
+        onClick={() => {}}
+        title="Showreel, Domain-Scanner, Pricing & Zertifikate"
+      >
+        VERMARKTUNG &amp; SHOWREEL
+      </button>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Left Navigation (5 Gold Buttons + MCP Tools)
-// ---------------------------------------------------------------------------
-
-function LeftNav({ navItems }: { navItems: ShellNavigationItem[] }) {
-  return (
-    <aside
-      style={{
-        width: 260,
-        background: "rgba(11, 14, 20, 0.92)",
-        borderRight: `1px solid ${SINGULARITY_COLORS.line}`,
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-        zIndex: 40,
-      }}
-    >
-      <nav style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            style={{
-              width: "100%",
-              textAlign: "left",
-              padding: "14px 16px",
-              background: item.active
-                ? SINGULARITY_GRADIENT_GOLD
-                : "rgba(16, 22, 33, 0.6)",
-              color: item.active ? SINGULARITY_COLORS.goldText : SINGULARITY_COLORS.champagne,
-              border: `1px solid ${SINGULARITY_COLORS.goldRing}`,
-              borderRadius: 10,
-              fontWeight: 700,
-              fontSize: 13,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (!item.active) {
-                e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
-                e.currentTarget.style.borderColor = SINGULARITY_COLORS.emerald;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!item.active) {
-                e.currentTarget.style.background = "rgba(16, 22, 33, 0.6)";
-                e.currentTarget.style.borderColor = SINGULARITY_COLORS.goldRing;
-              }
-            }}
-            onClick={item.onClick}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-      <div style={{ padding: 16, borderTop: `1px solid ${SINGULARITY_COLORS.line}` }}>
-        <button
-          type="button"
-          style={{
-            width: "100%",
-            textAlign: "left",
-            padding: "12px 14px",
-            background: "rgba(45, 212, 191, 0.1)",
-            color: SINGULARITY_COLORS.emerald,
-            border: `1px solid ${SINGULARITY_COLORS.emerald}`,
-            borderRadius: 10,
-            fontWeight: 700,
-            fontSize: 11,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-            cursor: "pointer",
-            marginBottom: 8,
-          }}
-          onClick={() => {}}
-        >
-          OPEN-SOURCE MCP TOOLS (0,00 €)
-        </button>
-        <div style={{ fontSize: 10, color: SINGULARITY_COLORS.muted, lineHeight: 1.4 }}>
-          Aktive MCP-Server werden live gepingt und können im Sektor
-          "Infrastruktur &amp; Business" getestet werden.
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Right Inspector (4-Tab + Certification Gateway + SHA-256 Ledger)
-// ---------------------------------------------------------------------------
-
-function RightInspector({
-  inspectorOpen,
-  onInspectorToggle,
-}: {
-  inspectorOpen: boolean;
-  onInspectorToggle: () => void;
-}) {
+function RightInspector({ inspectorOpen, onInspectorToggle }: { inspectorOpen: boolean; onInspectorToggle: () => void }) {
   return (
     <aside
       style={{
@@ -424,15 +415,12 @@ function RightInspector({
                 textTransform: "uppercase",
                 cursor: "pointer",
               }}
-              onClick={() => {
-                onInspectorToggle();
-              }}
+              onClick={() => { onInspectorToggle(); }}
             >
               {tab}
             </button>
           ))}
         </div>
-
         <div
           style={{
             background: SINGULARITY_GRADIENT_GOLD,
@@ -444,16 +432,15 @@ function RightInspector({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: 0.5,
-            boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
+            boxShadow: "0 0 24px rgba(212, 175, 55, 0.18)",
             marginBottom: 10,
             cursor: "pointer",
           }}
-          onClick={() => onInspectorToggle()}
+          onClick={() => { onInspectorToggle(); }}
         >
           CERTIFICATION<br />
           GATEWAY
         </div>
-
         <div
           style={{
             flex: 1,
@@ -484,7 +471,7 @@ function RightInspector({
                 fontSize: 10,
                 color: SINGULARITY_COLORS.text,
               }}
-              onClick={() => onInspectorToggle()}
+              onClick={() => { onInspectorToggle(); }}
             >
               <span
                 style={{
@@ -504,114 +491,32 @@ function RightInspector({
             </div>
           ))}
           <div style={{ marginTop: 8, color: SINGULARITY_COLORS.muted, fontSize: 9 }}>
-            Klick auf einen Hash für forensische Detailansicht
+            Klick auf einen Hash fuer forensische Detailansicht
           </div>
         </div>
       </div>
     </aside>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Footer Bar (Time-Travel Debugger + Live Status)
-// ---------------------------------------------------------------------------
-
-function FooterBar({
-  liveTracesCount,
-  latencyMs,
-  modelName,
-  autoRollbackArmed,
-}: {
-  liveTracesCount: number;
-  latencyMs: number | null;
-  modelName: string;
-  autoRollbackArmed: boolean;
-}) {
+function FooterBar({ liveTracesCount, latencyMs, modelName, autoRollbackArmed }: { liveTracesCount: number | null; latencyMs: number | null; modelName: string | null; autoRollbackArmed: boolean }) {
   return (
     <footer
       style={{
-        height: 74,
-        background: "rgba(6, 9, 15, 0.95)",
-        borderTop: `1px solid ${SINGULARITY_COLORS.line}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 20px",
-        zIndex: 60,
-        gap: 16,
-        flexWrap: "wrap",
+        padding: "6px 16px",
+        background: "rgba(11, 14, 20, 0.92)",
+        borderTop: `1px solid ${SINGULARITY_COLORS.line}`,
+        fontSize: 11,
+        color: SINGULARITY_COLORS.muted,
+        zIndex: 45,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 280 }}>
-        <button
-          type="button"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 6,
-            background: SINGULARITY_GRADIENT_GOLD,
-            color: SINGULARITY_COLORS.goldText,
-            fontWeight: 800,
-            border: "none",
-            cursor: "pointer",
-          }}
-          title="Play/Pause"
-        />
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value="0"
-          style={{
-            flex: 1,
-            accentColor: SINGULARITY_COLORS.emerald,
-            height: 6,
-            background: "rgba(212, 175, 55, 0.2)",
-            borderRadius: 3,
-          }}
-        />
-        <div style={{ display: "flex", gap: 6, fontSize: 10, color: SINGULARITY_COLORS.muted }}>
-          {[0, 25, 50, 75, 100].map((p) => (
-            <div key={p} style={{ width: 8, height: 2, background: SINGULARITY_COLORS.line }} />
-          ))}
-        </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 11, color: SINGULARITY_COLORS.muted, whiteSpace: "nowrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span className="sg-live-dot" />
-          <span style={{ color: SINGULARITY_COLORS.text, fontWeight: 700 }}>
-            LIVE-TRACES: {liveTracesCount} AKTIV
-          </span>
-        </div>
-        <span>|</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span>LATENZ:</span>
-          <span style={{ color: SINGULARITY_COLORS.champagne, fontWeight: 700 }}>
-            {latencyMs ?? "-"} ms
-          </span>
-        </div>
-        <span>|</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span>MODELL:</span>
-          <span style={{ color: SINGULARITY_COLORS.champagne, fontWeight: 700 }}>
-            {modelName} (0,00 €)
-          </span>
-        </div>
-        <span>|</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: autoRollbackArmed ? SINGULARITY_COLORS.emerald : SINGULARITY_COLORS.muted }}>
-            AUTO-ROLLBACK GUARD:
-          </span>
-          <span
-            style={{
-              color: autoRollbackArmed ? SINGULARITY_COLORS.emerald : SINGULARITY_COLORS.muted,
-              fontWeight: 700,
-            }}
-          >
-            {autoRollbackArmed ? "ARMED" : "DISARMED"}
-          </span>
-        </div>
-      </div>
+      <span>LIVE TRACES: {liveTracesCount !== null ? liveTracesCount : "—"}</span>
+      <span>LATENCY: {latencyMs !== null ? latencyMs : "—"}ms</span>
+      <span>MODEL: {modelName !== null ? modelName : "—"}</span>
+      <span>AUTO-ROLLBACK: {autoRollbackArmed ? "ARMED" : "STANDBY"}</span>
     </footer>
   );
 }

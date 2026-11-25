@@ -14,7 +14,7 @@ import {
 } from "../ui/SingularityPrimitives";
 import { SingularityShell } from "../ui/SingularityShell";
 import { useTelemetryStream } from "../ui/useTelemetryStream";
-import { CommandWheelCanvas } from "./CommandWheelCanvas";
+import { CommandWheelCanvas, CommandWheelBottomCards } from "./CommandWheelCanvas";
 import type { AgentDef } from "../../services/agent-types";
 import type { EarningsSummary } from "../../services/agent-types";
 import type { AgentPerformanceSnapshot } from "../../services/agent-types";
@@ -66,7 +66,6 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
   const [modelName, setModelName] = useState<string>("OLLAMA LOCAL");
   const [autoRollbackArmed, setAutoRollbackArmed] = useState(true);
 
-  // Breadcrumb basierend auf aktiver Ansicht
   const breadcrumbItems = useMemo<{ label: string; onClick?: () => void }[]>(() => [
     { label: "COCKPIT", onClick: () => {} },
     { label: activeView === "command" ? "SEKTOR" : "ORGANIGRAMM" },
@@ -74,7 +73,6 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
     { label: "DETAIL", onClick: () => {} },
   ], [activeView]);
 
-  // Telemetry Stream verbinden
   const handleTelemetryEvent = useCallback((event: any) => {
     switch (event.type) {
       case "WORKER_START":
@@ -97,7 +95,6 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
 
   useTelemetryStream(handleTelemetryEvent, true);
 
-  // Investment-Level aus URL oder Default
   useEffect(() => {
     const urlLevel = searchParams.get("investment") as InvestmentLevel | null;
     if (urlLevel && urlLevel in INVESTMENT_LEVELS) {
@@ -132,20 +129,23 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
 
   const shellProps: ShellProps = {
     children: (
-      <CommandWheelCanvas
-        initialTraces={initialTraces}
-        executivePulse={executivePulse}
-        dynamicCount={dynamicCount}
-        ownerShop={ownerShop}
-        roster={roster}
-        earnings={earnings}
-        performance={performance}
-        allowedDepartmentIds={allowedDepartmentIds}
-        onPickDept={onPickDept}
-        onSelectModule={onSelectModule}
-        onSwitchView={handleSwitchView}
-        activeView={activeView}
-      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+        <CommandWheelCanvas
+          initialTraces={initialTraces}
+          executivePulse={executivePulse}
+          dynamicCount={dynamicCount}
+          ownerShop={ownerShop}
+          roster={roster}
+          earnings={earnings}
+          performance={performance}
+          allowedDepartmentIds={allowedDepartmentIds}
+          onPickDept={onPickDept}
+          onSelectModule={onSelectModule}
+          onSwitchView={handleSwitchView}
+          activeView={activeView}
+        />
+        <CommandWheelBottomCards />
+      </div>
     ),
     navItems: NAV_ITEMS,
     breadcrumbItems,

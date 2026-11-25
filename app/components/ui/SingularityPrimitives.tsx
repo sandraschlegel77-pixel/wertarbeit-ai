@@ -104,8 +104,8 @@ export function CommandPalette({ open, onClose, onCommand }: { open: boolean; on
 }
 export function FixedOverlay({ children, onClose, className, style }: { children: React.ReactNode; onClose: () => void; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={className} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(6, 9, 15, 0.75)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(6px)", ...style }} onClick={onClose}>
-      <div className="sg-panel-strong" style={{ maxWidth: "95vw", maxHeight: "95vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>{children}</div>
+    <div className={className} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(6, 9, 15, 0.75)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(6px)", pointerEvents: "none", ...style }} onClick={onClose}>
+      <div className="sg-panel-strong" style={{ maxWidth: "95vw", maxHeight: "95vh", overflow: "auto", pointerEvents: "auto" }} onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>
   );
 }

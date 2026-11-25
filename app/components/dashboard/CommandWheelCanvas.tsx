@@ -83,26 +83,30 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
       style={{
         position: "relative",
         width: "100%",
-        height: "min(540px, 100%)",
         display: "flex",
         flexDirection: "column",
         gap: 16,
         background: "transparent",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 4 }}>
+      {/* VIEW SWITCH BUTTONS - oben zentriert */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 8 }}>
         <button
           type="button"
           style={{
             padding: "6px 14px",
-            background: activeView === "command" ? "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)" : "rgba(212, 175, 55, 0.12)",
-            color: "#D4AF37",
+            background: activeView === "command"
+              ? "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)"
+              : "rgba(16, 22, 33, 0.6)",
+            color: activeView === "command" ? "#0B0E14" : "#D4AF37",
             border: "1px solid #D4AF37",
             borderRadius: 8,
             fontWeight: 800,
             fontSize: 11,
             textTransform: "uppercase",
             cursor: "pointer",
+            pointerEvents: "auto",
+            zIndex: 30,
           }}
           onClick={() => onSwitchView("command")}
         >
@@ -112,14 +116,18 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           type="button"
           style={{
             padding: "6px 14px",
-            background: activeView === "organigramm" ? "linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 100%)" : "rgba(248, 250, 252, 0.08)",
-            color: "#F8FAFC",
-            border: "1px solid #F8FAFC",
+            background: activeView === "organigramm"
+              ? "linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 100%)"
+              : "rgba(16, 22, 33, 0.6)",
+            color: activeView === "organigramm" ? "#0B0E14" : "#F8FAFC",
+            border: activeView === "organigramm" ? "1px solid #F8FAFC" : "1px solid #D4AF37",
             borderRadius: 8,
             fontWeight: 800,
             fontSize: 11,
             textTransform: "uppercase",
             cursor: "pointer",
+            pointerEvents: "auto",
+            zIndex: 30,
           }}
           onClick={() => onSwitchView("organigramm")}
         >
@@ -127,13 +135,15 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
         </button>
       </div>
 
+      {/* COMMAND WHEEL - volle Breite, ganz oben, feste Höhe */}
       <div
         style={{
+          width: "100%",
+          minHeight: "520px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          minHeight: 0,
         }}
       >
         <svg
@@ -141,7 +151,7 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           viewBox="0 0 1200 900"
           width="100%"
           height="100%"
-          style={{ maxWidth: "1100px", maxHeight: "750px", display: "block" }}
+          style={{ maxWidth: "1100px", maxHeight: "750px", display: "block", width: "100%", height: "auto" }}
         >
           <defs>
             <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
@@ -338,110 +348,136 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
             );
           })}
         </svg>
+      </div>
+    </div>
+  );
+}
 
-        {/* Rechte Seite: Zwei Rauchglas-Karten */}
+/**
+ * CommandWheelBottomCards — LIVE SWARM DEBATE + ONE-SWIPE Karten,
+ * werden unterhalb des CommandWheel gerendert (kompakte 2-Spalten-Leiste).
+ */
+export function CommandWheelBottomCards() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "1200px",
+        margin: "auto",
+        background: "rgba(16, 22, 33, 0.88)",
+        border: "1px solid rgba(45, 212, 191, 0.5)",
+        borderRadius: 14,
+        padding: 20,
+        boxShadow: "0 0 24px rgba(45, 212, 191, 0.12)",
+        pointerEvents: "auto",
+        zIndex: 30,
+      }}
+    >
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+        {/* LIVE SWARM DEBATE Karte */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
+            flex: 1,
+            minWidth: 260,
+            background: "rgba(6, 9, 15, 0.6)",
+            border: "1px solid rgba(45, 212, 191, 0.5)",
+            borderRadius: 12,
+            padding: 16,
+            boxShadow: "0 0 24px rgba(45, 212, 191, 0.12)",
           }}
         >
-          <div
-            style={{
-              background: "rgba(16, 22, 33, 0.88)",
-              border: "1px solid rgba(45, 212, 191, 0.5)",
-              borderRadius: 14,
-              padding: 16,
-              boxShadow: "0 0 24px rgba(45, 212, 191, 0.12)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "#2DD4BF",
+                boxShadow: "0 0 8px #2DD4BF",
+              }}
+            />
+            <span style={{ fontWeight: 800, fontSize: 12, color: "#2DD4BF", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              LIVE SWARM DEBATE
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5, marginBottom: 12 }}>
+            Real-time consensus zwischen Legal, Growth und Devil's Advocate.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            {[["Legal", "legal"], ["Growth", "growth"], ["Devil's Advocate", "devil"]].map(([label, key]) => (
               <div
+                key={key}
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: "#2DD4BF",
-                  boxShadow: "0 0 8px #2DD4BF",
+                  flex: 1,
+                  padding: "6px 8px",
+                  background: "rgba(6, 9, 15, 0.6)",
+                  border: "1px solid #2DD4BF",
+                  borderRadius: 6,
+                  color: "#2DD4BF",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
                 }}
-              />
-              <span style={{ fontWeight: 800, fontSize: 12, color: "#2DD4BF", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                LIVE SWARM DEBATE
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5, marginBottom: 12 }}>
-              Real-time consensus zwischen Legal, Growth und Devil's Advocate.
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {["Legal", "Growth", "Devil's Advocate"].map((label) => (
-                <div
-                  key={label}
-                  style={{
-                    flex: 1,
-                    padding: "6px 8px",
-                    background: "rgba(6, 9, 15, 0.6)",
-                    border: `1px solid #2DD4BF`,
-                    borderRadius: 6,
-                    color: "#2DD4BF",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textAlign: "center",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                  }}
-                >
-                  {label}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 60, overflow: "hidden" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#94A3B8" }}>
+                  <span style={{ color: "#2DD4BF" }}>Jury #{i + 1}</span>
+                  <span>{i % 2 === 0 ? "PASS" : "REVIEW"}</span>
                 </div>
               ))}
             </div>
-            <div style={{ height: 60, overflow: "hidden" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#94A3B8" }}>
-                    <span style={{ color: "#2DD4BF" }}>Jury #{i + 1}</span>
-                    <span>{i % 2 === 0 ? "PASS" : "REVIEW"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
+        </div>
 
-          <div
+        {/* ONE-SWIPE AUTO-REINVEST Karte */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 260,
+            background: "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)",
+            color: "#141006",
+            borderRadius: 12,
+            padding: 16,
+            boxShadow: "0 0 24px rgba(212, 175, 55, 0.18)",
+            cursor: "pointer",
+            pointerEvents: "auto",
+            zIndex: 30,
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+            ONE-SWIPE AUTO-REINVEST<br />
+            &amp; APPROVAL
+          </div>
+          <div style={{ fontSize: 10, color: "#141006", opacity: 0.8, marginBottom: 14, lineHeight: 1.4 }}>
+            Ein Klick freigibt alle pending Consensus-Jury-Verdikte und reinvestiert automatisch.
+          </div>
+          <button
+            type="button"
             style={{
-              background: "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)",
-              color: "#141006",
-              borderRadius: 12,
-              padding: 16,
-              boxShadow: "0 0 24px rgba(212, 175, 55, 0.18)",
+              width: "100%",
+              padding: "8px 14px",
+              background: "#141006",
+              color: "#D4AF37",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 11,
+              textTransform: "uppercase",
               cursor: "pointer",
+              pointerEvents: "auto",
+              zIndex: 30,
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
-              ONE-SWIPE AUTO-REINVEST<br />
-              &amp; APPROVAL
-            </div>
-            <div style={{ fontSize: 10, color: "#141006", opacity: 0.8, marginBottom: 14, lineHeight: 1.4 }}>
-              Ein Klick freigibt alle pending Consensus-Jury-Verdikte und reinvestiert automatisch.
-            </div>
-            <button
-              type="button"
-              style={{
-                width: "100%",
-                padding: "8px 14px",
-                background: "#141006",
-                color: "#D4AF37",
-                border: "none",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 11,
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              AUTO-REINVEST AUSFÜHREN
-            </button>
-          </div>
+            AUTO-REINVEST AUSFÜHREN
+          </button>
         </div>
       </div>
     </div>
