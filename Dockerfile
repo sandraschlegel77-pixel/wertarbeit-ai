@@ -12,6 +12,7 @@ RUN npm ci --include=dev
 COPY . .
 
 RUN npm run build
+RUN npx prisma generate
 RUN npm prune --omit=dev && npm cache clean --force
 
 FROM node:22-alpine AS runtime
