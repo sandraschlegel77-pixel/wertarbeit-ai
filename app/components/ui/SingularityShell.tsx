@@ -181,7 +181,7 @@ function LeftNav({ navItems }: { navItems: ShellNavigationItem[] }) {
           OPEN-SOURCE MCP TOOLS (0,00 â‚¬)
         </button>
         <div style={{ fontSize: 10, color: SINGULARITY_COLORS.muted, lineHeight: 1.4 }}>
-          Aktive MCP-Server werden live gepingt und kÃ¶nnen im Sektor
+          Aktive MCP-Server werden live gepingt und können im Sektor
           "Infrastruktur & Business" getestet werden.
         </div>
       </div>
@@ -354,9 +354,9 @@ function RightControls({
           zIndex: 30,
         }}
         onClick={() => {}}
-        title="LIVE ROI & QUALITÃ„T umschalten"
+        title="LIVE ROI & QUALITÄT umschalten"
       >
-        LIVE ROI &amp; QUALITÃ„T
+        LIVE ROI &amp; QUALITÄT
       </div>
       <button
         type="button"

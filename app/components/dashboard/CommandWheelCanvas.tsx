@@ -2,10 +2,11 @@
  * CommandWheelCanvas — Pixelgenaues Command-Rad (SVG viewBox="0 0 1200 900").
  * Innerer Kern + 10 emerald-gold Kreise im 36°-Winkel (horizontal 0°) mit animierten Lichtimpulsen.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { AgentDef } from "../../services/agent-types";
 import type { EarningsSummary } from "../../services/agent-types";
 import type { AgentPerformanceSnapshot } from "../../services/agent-types";
+import { AgentCommsBubble } from "./AgentCommsBubble";
 
 const DEPARTMENTS = [
   { number: 1, name: "Workflow", label: "1. Workflow", key: "dept1" },
@@ -22,9 +23,9 @@ const DEPARTMENTS = [
 
 const CENTER_X = 600;
 const CENTER_Y = 450;
-const INNER_R = 140;
-const DEPT_R = 320;
-const DEPT_CIRCLE_R = 52;
+const INNER_R = 150;
+const DEPT_R = 340;
+const DEPT_CIRCLE_R = 62;
 
 interface CommandWheelCanvasProps {
   initialTraces: Array<{ channelKey: string; agentKey: string | null; eventType: string; outcome: string }>;
@@ -77,6 +78,38 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
     if (!agentKey) return false;
     return activeTraceAgents.has(agentKey);
   };
+
+  const activeDeptNumbers = useMemo(() => {
+    const set = new Set<number>();
+    for (const t of initialTraces) {
+      if (!t.agentKey) continue;
+      const agent = roster.find((a) => a.key === t.agentKey);
+      if (agent) set.add(agent.departmentId);
+    }
+    return [...set];
+  }, [initialTraces, roster]);
+
+  const commsBubbles = useMemo(() => {
+    if (activeDeptNumbers.length < 2) return [];
+    return activeDeptNumbers.slice(0, 4).map((fromId, idx) => {
+      const toId = activeDeptNumbers[(idx + 1) % activeDeptNumbers.length];
+      const fromIdx = DEPARTMENTS.findIndex((d) => d.number === fromId);
+      const toIdx = DEPARTMENTS.findIndex((d) => d.number === toId);
+      if (fromIdx < 0 || toIdx < 0) return null;
+      const fromPos = getDeptPosition(fromIdx);
+      const toPos = getDeptPosition(toIdx);
+      return (
+        <AgentCommsBubble
+          key={`${fromId}-${toId}`}
+          fromDept={fromId}
+          toDept={toId}
+          fromPos={fromPos}
+          toPos={toPos}
+          message="SYNC"
+        />
+      );
+    }).filter(Boolean) as React.ReactNode[];
+  }, [activeDeptNumbers, initialTraces, roster]);
 
   return (
     <div
@@ -168,21 +201,70 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
             </filter>
           </defs>
 
-          {/* Verbindungs-Linien */}
+          {/* Kräftige goldene & smaragdgrüne Speichen mit wandernden Lichtimpulsen */}
           {DEPARTMENTS.map((dept, i) => {
             const pos = getDeptPosition(i);
+            const hasActive = roster.some(
+              (a) => a.departmentId === dept.number && activeTraceAgents.has(a.key),
+            );
             return (
-              <line
-                key={dept.key}
-                x1={CENTER_X}
-                y1={CENTER_Y}
-                x2={pos.x}
-                y2={pos.y}
-                stroke="#D4AF37"
-                strokeOpacity="0.35"
-                strokeWidth="2"
-                className={isAgentActive(roster.find((a) => a.departmentId === dept.number)?.key) ? "sg-pulse-emerald" : ""}
-              />
+              <g key={dept.key}>
+                {/* Goldene Speiche */}
+                <line
+                  x1={CENTER_X}
+                  y1={CENTER_Y}
+                  x2={pos.x}
+                  y2={pos.y}
+                  stroke="#D4AF37"
+                  strokeOpacity="0.5"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <animate
+                    attributeName="stroke-opacity"
+                    values="0.35;0.85;0.35"
+                    dur={`${2 + i * 0.3}s`}
+                    repeatCount="indefinite"
+                  />
+                </line>
+                {/* Smaragdgrüne Speiche */}
+                <line
+                  x1={CENTER_X}
+                  y1={CENTER_Y}
+                  x2={pos.x}
+                  y2={pos.y}
+                  stroke="#10B981"
+                  strokeOpacity="0.4"
+                  strokeWidth="1.5"
+                  strokeDasharray="8 6"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    from="0"
+                    to="-28"
+                    dur="1.5s"
+                    repeatCount="indefinite"
+                  />
+                </line>
+                {/* Wandernder goldener Lichtimpuls */}
+                <circle r="4" fill="#D4AF37" filter="url(#glow)">
+                  <animateMotion
+                    dur={`${2.4 + i * 0.2}s`}
+                    repeatCount="indefinite"
+                    path={`M ${CENTER_X} ${CENTER_Y} L ${pos.x} ${pos.y}`}
+                  />
+                </circle>
+                {/* Wandernder smaragdgrüner Lichtimpuls (nur bei aktiven Traces) */}
+                {hasActive && (
+                  <circle r="3.5" fill="#10B981" filter="url(#glow)">
+                    <animateMotion
+                      dur={`${1.8 + i * 0.15}s`}
+                      repeatCount="indefinite"
+                      path={`M ${pos.x} ${pos.y} L ${CENTER_X} ${CENTER_Y}`}
+                    />
+                  </circle>
+                )}
+              </g>
             );
           })}
 
@@ -313,11 +395,12 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
                 />
                 <text
                   x={pos.x}
-                  y={pos.y - 10}
+                  y={pos.y - 12}
                   textAnchor="middle"
                   fill="#D4AF37"
                   fontWeight="800"
-                  fontSize="12"
+                  fontSize="14"
+                  letterSpacing="0.5"
                 >
                   {dept.number}
                 </text>
@@ -327,7 +410,7 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
                   textAnchor="middle"
                   fill={isActive ? "#2DD4BF" : "#E2E8F0"}
                   fontWeight="700"
-                  fontSize="10"
+                  fontSize="13"
                   letterSpacing="0.3"
                 >
                   {dept.name}
@@ -335,11 +418,11 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
                 {isActive && (
                   <text
                     x={pos.x}
-                    y={pos.y + 20}
+                    y={pos.y + 24}
                     textAnchor="middle"
                     fill="#2DD4BF"
                     fontWeight="800"
-                    fontSize="9"
+                    fontSize="11"
                   >
                     ● {activeCount}
                   </text>
@@ -347,6 +430,19 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
               </g>
             );
           })}
+
+          {/* AgentCommsBubbles für aktive Traces zwischen Abteilungen */}
+          {commsBubbles.map((b: any) => (
+            <AgentCommsBubble
+              key={b.key}
+              fromDept={b.fromDept}
+              toDept={b.toDept}
+              fromPos={b.fromPos}
+              toPos={b.toPos}
+              message="SYNC"
+            />
+          ))}
+
         </svg>
       </div>
     </div>
