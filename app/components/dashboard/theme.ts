@@ -1,10 +1,10 @@
 import type { CSSProperties } from "react";
 
 export const C = {
-  slate: "#0F172A",
-  slate2: "#162033",
-  slate3: "#1E293B",
-  line: "#2B3A55",
+  slate: "#0B0E14",
+  slate2: "#1A2234",
+  slate3: "#111622",
+  line: "rgba(212, 175, 55, 0.35)",
   gold: "#D4AF37",
   champagne: "#F7E7CE",
   emerald: "#10B981",
@@ -15,11 +15,12 @@ export const C = {
 } as const;
 
 export const card: CSSProperties = {
-  background: `linear-gradient(160deg, ${C.slate2}, ${C.slate})`,
-  border: `1px solid ${C.line}`,
+  background: `linear-gradient(160deg, ${C.slate2} 0%, ${C.slate3} 100%)`,
+  border: `1px solid ${C.gold}`,
+  boxShadow: "0 0 24px rgba(212, 175, 55, 0.12)",
   borderRadius: 14,
   padding: 16,
-  color: C.text,
+  color: "#F8FAFC",
 };
 
 export const btn: CSSProperties = {

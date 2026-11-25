@@ -101,14 +101,13 @@ type LegalRule = {
   reviewStatus: string;
 };
 
+/** 6 Leuchtfarben: command = Befehlsfluss, process = Operativer Fluss, infrastructure, feedback = Omega-Fluss, control = Prüffluss, data = Datenfluss. */
 type LegendId =
   | "command"
-  | "expertise"
-  | "control"
   | "process"
   | "infrastructure"
   | "feedback"
-  | "consensus"
+  | "control"
   | "data";
 
 type EntityTone =
@@ -163,6 +162,8 @@ type Entity = {
   reportsTo?: number | null;
   agentNumber?: number;
   newlySpawned?: boolean;
+  /** Feste Position im 5-Zonen-Blueprint (Flow-Koordinaten); nur auf der Startebene gesetzt. */
+  zone?: { x: number; y: number; w: number; h: number };
 };
 
 type FlowNodeData = {
@@ -176,7 +177,7 @@ type FlowNodeData = {
   activeColumns: Set<string>;
   onInspect: (entity: Entity) => void;
 };
-type FlowNode = Node<FlowNodeData, "apex">;
+type FlowNode = Node<FlowNodeData, "apex" | "zone">;
 type FlowEdgeData = {
   packet: string;
   legendId: LegendId;
@@ -210,81 +211,78 @@ interface Props {
 }
 
 const LEGEND: { id: LegendId; label: string; color: string }[] = [
-  { id: "command", label: "Command", color: "#B7791F" },
-  { id: "expertise", label: "Expertise-Input", color: "#2563EB" },
-  { id: "control", label: "Control / Audit", color: "#DC2626" },
-  { id: "process", label: "Process-Flow", color: "#B45309" },
-  { id: "infrastructure", label: "Infrastructure", color: "#475569" },
-  { id: "feedback", label: "Meta Feedback Loop", color: "#A16207" },
-  { id: "consensus", label: "Decision Consensus", color: "#047857" },
-  { id: "data", label: "Data-Flow", color: "#0F766E" },
+  { id: "command", label: "Befehlsfluss", color: "#D4AF37" },
+  { id: "process", label: "Operativer Fluss", color: "#38BDF8" },
+  { id: "infrastructure", label: "Infrastrukturfluss", color: "#94A3B8" },
+  { id: "feedback", label: "Omega-Fluss", color: "#A855F7" },
+  { id: "control", label: "Prüffluss / Feedback", color: "#EF4444" },
+  { id: "data", label: "Datenfluss", color: "#10B981" },
 ];
 
 const EDGE_COLORS: Record<LegendId, string> = {
-  command: "#B7791F",
-  expertise: "#2563EB",
-  control: "#DC2626",
-  process: "#B45309",
-  infrastructure: "#475569",
-  feedback: "#A16207",
-  consensus: "#047857",
-  data: "#0F766E",
+  command: "#D4AF37",
+  process: "#38BDF8",
+  infrastructure: "#94A3B8",
+  feedback: "#A855F7",
+  control: "#EF4444",
+  data: "#10B981",
 };
 
+/** Obsidian-Gold: alle Töne sind dunkle Schiefer-Karten, der Akzent kommt über --node-accent (Leuchtfarbe). */
 const TONE_COLORS: Record<EntityTone, string> = {
-  obsidian: "#1E3A5F",
-  sapphire: "#2B4C7E",
-  violet: "#D8D0E8",
-  petrol: "#135D66",
-  antiqueGold: "#B5944B",
-  platinumSlate: "#B8C4D0",
-  bronze: "#B58938",
-  burgundy: "#A84248",
-  emerald: "#2B7A78",
-  sandBronze: "#D4BA7A",
-  champagne: "#C9A34E",
-  steelSlate: "#334E68",
-  sageEmerald: "#88B39E",
-  deepBordeaux: "#8B2635",
-  royalBlue: "#234E8E",
-  processLayer: "#DCE8F5",
-  whiteCard: "#EBF2FA",
-  softSlate: "#CBD5E1",
-  workflowCard: "#D6E6F4",
-  communicationCard: "#F5E9CE",
-  integrationCard: "#F5D6D8",
-  supportCard: "#D5ECEB",
-  turquoise: "#7FB3B0",
-  iceBlue: "#A8C6DF",
-  workflowBlue: "#2E6699",
+  obsidian: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  sapphire: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  violet: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  petrol: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  antiqueGold: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  platinumSlate: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  bronze: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  burgundy: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  emerald: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  sandBronze: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  champagne: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  steelSlate: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  sageEmerald: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  deepBordeaux: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  royalBlue: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  processLayer: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  whiteCard: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  softSlate: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  workflowCard: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  communicationCard: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  integrationCard: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  supportCard: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  turquoise: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  iceBlue: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
+  workflowBlue: "linear-gradient(160deg, #1A2234 0%, #111622 100%)",
 };
 
 const TONE_FOREGROUNDS: Record<EntityTone, string> = {
   obsidian: "#F8FAFC",
-  sapphire: "#FFFFFF",
-  violet: "#1E293B",
-  petrol: "#FFFFFF",
-  antiqueGold: "#FFFFFF",
-  platinumSlate: "#1E293B",
-  bronze: "#1E293B",
-  burgundy: "#FFFFFF",
-  emerald: "#FFFFFF",
-  sandBronze: "#1E293B",
-  champagne: "#1E293B",
-  steelSlate: "#FFFFFF",
-  sageEmerald: "#1E293B",
-  deepBordeaux: "#FFFFFF",
-  royalBlue: "#FFFFFF",
-  processLayer: "#1E293B",
-  whiteCard: "#1E293B",
-  softSlate: "#1E293B",
-  workflowCard: "#1E293B",
-  communicationCard: "#1E293B",
-  integrationCard: "#1E293B",
-  supportCard: "#1E293B",
-  turquoise: "#1E293B",
-  iceBlue: "#1E293B",
-  workflowBlue: "#FFFFFF",
+  sapphire: "#F8FAFC",
+  violet: "#F8FAFC",
+  petrol: "#F8FAFC",
+  antiqueGold: "#F8FAFC",
+  platinumSlate: "#F8FAFC",
+  bronze: "#F8FAFC",
+  burgundy: "#F8FAFC",
+  emerald: "#F8FAFC",
+  sandBronze: "#F8FAFC",
+  champagne: "#F8FAFC",
+  steelSlate: "#F8FAFC",
+  sageEmerald: "#F8FAFC",
+  deepBordeaux: "#F8FAFC",
+  royalBlue: "#F8FAFC",
+  processLayer: "#F8FAFC",
+  whiteCard: "#F8FAFC",
+  softSlate: "#F8FAFC",
+  workflowCard: "#F8FAFC",
+  communicationCard: "#F8FAFC",
+  integrationCard: "#F8FAFC",
+  supportCard: "#F8FAFC",
+  turquoise: "#F8FAFC",
+  iceBlue: "#F8FAFC",
+  workflowBlue: "#F8FAFC",
 };
 
 const ENTITY_ICONS: Record<string, LucideIcon> = {
@@ -354,13 +352,6 @@ const ENTITY_ICONS: Record<string, LucideIcon> = {
   "transaction-log": LockKeyhole,
 };
 
-const COLUMN_LAYOUTS = [
-  { id: "column-1", title: "Wissen & Qualifikation", x: 20, width: 310 },
-  { id: "column-2", title: "Inhaber & Core AI", x: 370, width: 250 },
-  { id: "column-3", title: "Haupt-Matrix", x: 680, width: 920 },
-  { id: "column-4", title: "Überwachung & Ledger", x: 1680, width: 310 },
-] as const;
-
 const PILLAR_DEPARTMENT_IDS: Record<string, number[]> = {
   "pillar-workflow": [1, 2, 3, 4, 8, 10, 13, 24, 26],
   "pillar-communication": [5, 6, 7, 11, 15, 16, 17, 18, 20],
@@ -395,12 +386,10 @@ const TITLE_MAP: Record<string, string> = {
 /** Klartext-Erklärung je Strom-Art für den Hover-Tooltip (Legende und Leitung). */
 const LEGEND_EXPLANATION: Record<LegendId, string> = {
   command: "Anweisungen vom Inhaber und der Meta-KI nach unten. Die OwnerRule hat immer Vorrang.",
-  expertise: "Fachwissen und Qualifikation fließen von der Akademie zu den ausführenden Teams.",
-  control: "Prüf- und Audit-Meldungen: hier greifen 3×-Prüfung, Veto und Freigabe-Warteschlange.",
-  process: "Arbeitsablauf von Planung über Ausführung bis Bericht.",
+  process: "Operativer Arbeitsfluss: Fachwissen, Planung, Ausführung und Bericht der Teams.",
   infrastructure: "Technische Grundlage: Schnittstellen, Werkzeuge und Quellen, auf die alle Teams zugreifen.",
-  feedback: "Rückmeldungen und Lernergebnisse, mit denen sich Mitarbeiter und Regeln verbessern.",
-  consensus: "Gemeinsame Entscheidung von Jury, Governance und Fachprüfern.",
+  feedback: "Omega-Fluss: Rückmeldungen, Lernergebnisse und gemeinsame Entscheidungen von Jury und Governance.",
+  control: "Prüf- und Audit-Meldungen: hier greifen 3×-Prüfung, Veto und Freigabe-Warteschlange.",
   data: "Ereignis- und Datenstrom, zum Beispiel gespeicherte Live-Traces.",
 };
 
@@ -411,7 +400,7 @@ const COLUMN_HEIGHT = 1180;
 /** Ankerpunkte nur unterhalb der Spaltenköpfe verteilen, damit keine Leitung die Überschriften verdeckt. */
 const laneTop = (index: number): number => 84 + ((index + 0.5) / LANE_HANDLES) * (COLUMN_HEIGHT - 124);
 
-const nodeTypes = { apex: ApexNode };
+const nodeTypes = { apex: ApexNode, zone: ZoneNode };
 const edgeTypes = { apex: AnimatedDataEdge };
 
 function entityHasVisibleContent(entity: Entity, visibleLegend: Set<LegendId>): boolean {
@@ -664,6 +653,83 @@ function ApexNode({ id, data, selected }: NodeProps<FlowNode>) {
   );
 }
 
+/** Freistehende Karte des 5-Zonen-Blueprints mit je vier Anker-Paaren (oben/unten/links/rechts). */
+function ZoneNode({ id, data, selected }: NodeProps<FlowNode>) {
+  const liveNode = useNode<FlowNode>(id);
+  const nodeData = liveNode?.data ?? data;
+  const entity = nodeData.entity;
+  const accent = LEGEND.find((item) => item.id === entity.legendId)?.color ?? "#D4AF37";
+  const Icon = ENTITY_ICONS[entity.id];
+  const tone = entity.tone ?? "obsidian";
+  const dimmed = (nodeData.focusedId && !nodeData.activeColumns.has(entity.id)) ||
+    (nodeData.focusedLegend && !entityContainsLegend(entity, nodeData.focusedLegend));
+  const sides: Array<[string, Position]> = [
+    ["t", Position.Top], ["b", Position.Bottom], ["l", Position.Left], ["r", Position.Right],
+  ];
+  return (
+    <article
+      className={[
+        "eos-zone-node",
+        selected ? "eos-column-selected" : "",
+        entity.clickable === false ? "" : "eos-zone-clickable",
+        dimmed ? "eos-dimmed" : "",
+      ].filter(Boolean).join(" ")}
+      style={{
+        "--node-accent": accent,
+        "--entity-background": TONE_COLORS[tone],
+        "--entity-foreground": TONE_FOREGROUNDS[tone],
+      } as CSSProperties}
+      data-zone-id={entity.id}
+      aria-label={`${entity.title}. ${entity.description}`}
+    >
+      {sides.map(([key, position]) => (
+        <Handle key={`t${key}`} id={`t${key}`} type="target" position={position} className="eos-lane-handle" />
+      ))}
+      {sides.map(([key, position]) => (
+        <Handle key={`s${key}`} id={`s${key}`} type="source" position={position} className="eos-lane-handle" />
+      ))}
+      <div className="eos-entity-topline">
+        <div className="eos-entity-heading">
+          {Icon && <Icon className="eos-entity-icon" aria-hidden="true" size={15} strokeWidth={2} />}
+          <strong>{entity.title}</strong>
+        </div>
+        <button
+          type="button"
+          className="eos-info-button"
+          aria-label={`Informationen zu ${entity.title}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            nodeData.onInspect(entity);
+          }}
+        >ⓘ</button>
+      </div>
+      {entity.description && <p className="eos-entity-description">{entity.description}</p>}
+      {entity.id === "zone-legend" && (
+        <ul className="eos-zone-legend" aria-label="Legende der 6 Leuchtfarben">
+          {LEGEND.map((item) => (
+            <li key={item.id}>
+              <span className="eos-zone-swatch" style={{ background: item.color, boxShadow: `0 0 8px ${item.color}` }} aria-hidden="true" />
+              {item.label} <code>{item.color}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!!entity.metrics?.length && (
+        <div className="eos-node-meta">
+          {entity.metrics.map((metric) => <span className="eos-chip" key={metric}>{metric}</span>)}
+        </div>
+      )}
+      {!!entity.children?.length && (
+        <div className={`eos-entity-children eos-entity-layout-${entity.layout ?? "row"}`}>
+          {entity.children.map((child) => (
+            <ArchitectureContent key={child.id} entity={child} data={nodeData} />
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 function AnimatedDataEdge({
   id,
   sourceX,
@@ -689,7 +755,7 @@ function AnimatedDataEdge({
     borderRadius: 12,
     centerY: (sourceY + targetY) / 2 + (data?.laneOffset ?? 0),
   });
-  const color = (style?.stroke as string) || "#234E8E";
+  const color = (style?.stroke as string) || "#D4AF37";
   const dimmed = Boolean(data?.dimmed);
   // Leitungen, die eine mittlere Spalte überqueren, werden leicht transparent, damit der Text darunter lesbar bleibt.
   const crossing = (source === "column-1" && target !== "column-2") || (source === "column-2" && target === "column-4");
@@ -705,11 +771,11 @@ function AnimatedDataEdge({
           id={id}
           d={edgePath}
           fill="none"
+          className="eos-edge-path"
           stroke={color}
           strokeWidth={3}
-          strokeDasharray="8 5"
           markerEnd={markerEnd}
-          style={{ animation: "apexDashFlow 1.2s linear infinite" }}
+          style={{ color, animation: "apexDashFlow 1.2s linear infinite" }}
         />
         {/* Unsichtbare, breite Trefferfläche: Leitungen lassen sich per Maus/Touch zuverlässig treffen. */}
         <path
@@ -720,12 +786,8 @@ function AnimatedDataEdge({
           strokeWidth={16}
           style={{ pointerEvents: "stroke", cursor: "pointer" }}
         />
-        <circle r={4.5} fill={color} stroke="#FFFFFF" strokeWidth={1.5}>
-          <animateMotion
-            dur={data?.fast ? "1.6s" : "2.8s"}
-            repeatCount="indefinite"
-            path={edgePath}
-          />
+        <circle className="eos-edge-pulse" r={3.5} fill={color} stroke="#F8FAFC" strokeWidth={1}>
+          <animateMotion dur="2.2s" repeatCount="indefinite" path={edgePath} />
         </circle>
       </g>
       {/* Schwebende Datenpaket-Kapsel: wandert entlang der Schiene (nur Schiene 1 je Leitungsgruppe, keine Überlagerung). */}
@@ -803,7 +865,7 @@ function makeAgentEntity(
 ): Entity {
   const result = performance.byAgent[agent.key];
   const revenue = earnings.perAgent[agent.key];
-  const legendId: LegendId = agent.number === 221 ? "control" : agent.auditDomain ? "control" : agent.departmentId === 5 || agent.departmentId === 23 ? "expertise" : "process";
+  const legendId: LegendId = agent.number === 221 ? "control" : agent.auditDomain ? "control" : agent.departmentId === 5 || agent.departmentId === 23 ? "process" : "process";
   const trend = result?.trend === "UP" ? "▲" : result?.trend === "DOWN" ? "▼" : result?.trend === "STABLE" ? "►" : "—";
   return {
     id: `agent-${agent.number}`,
@@ -836,7 +898,7 @@ function entityForTrace(trace: LiveConnectionTraceDto, roster: AgentDef[]): Enti
   const legendId: LegendId = trace.outcome !== "SUCCESS" || agent?.number === 221
     ? "control"
     : agent?.departmentId === 21 || agent?.departmentId === 22
-      ? "consensus"
+      ? "feedback"
       : "data";
   return {
     id: `trace-${trace.id}`,
@@ -928,12 +990,10 @@ function makeEntity(
 ): Entity {
   const toneByLegend: Record<LegendId, EntityTone> = {
     command: "obsidian",
-    expertise: "sapphire",
     control: "burgundy",
-    process: "bronze",
+    process: "sapphire",
     infrastructure: "steelSlate",
-    feedback: "sageEmerald",
-    consensus: "emerald",
+    feedback: "violet",
     data: "petrol",
   };
   return {
@@ -989,15 +1049,15 @@ function makeDepartmentEntity(
     [
       head
         ? makeAgentEntity(head, performance, earnings)
-        : makeEntity(`department-head-${department.id}`, "Abteilungsleitung", "Profil nicht in den sichtbaren Roster-Daten.", "expertise", { clickable: false }),
-      makeEntity(`department-roster-${department.id}`, "Hierarchischen Bereich öffnen", `${count} Profile · Leitung #${department.headNumber ?? "—"}`, "expertise", {
+        : makeEntity(`department-head-${department.id}`, "Abteilungsleitung", "Profil nicht in den sichtbaren Roster-Daten.", "process", { clickable: false }),
+      makeEntity(`department-roster-${department.id}`, "Hierarchischen Bereich öffnen", `${count} Profile · Leitung #${department.headNumber ?? "—"}`, "process", {
         route: `department-${department.id}`,
         metrics: ["Team-Drilldown"],
       }),
     ],
     {
       description: department.mechanism,
-      legendId: "expertise",
+      legendId: "process",
       route: `department-${department.id}`,
       tone,
       sourceType: "department",
@@ -1024,239 +1084,110 @@ function makeColumn(
   });
 }
 
-function buildRootEntities(props: Props, traces: LiveConnectionTraceDto[]): Entity[] {
-  const allowedDepartments = DEPARTMENTS.filter((department) => props.allowedDepartmentIds.includes(department.id));
-  const visibleRoster = props.ownerShop
-    ? props.roster
-    : props.roster.filter((agent) => agent.number !== 0 && props.allowedDepartmentIds.includes(agent.departmentId));
-  const curator = visibleRoster.find((agent) => agent.number === 399);
-  const meta = props.ownerShop ? visibleRoster.find((agent) => agent.number === 0) : undefined;
-  const pillarTones: Record<string, EntityTone> = {
-    "pillar-workflow": "workflowBlue",
-    "pillar-communication": "bronze",
-    "pillar-integration": "burgundy",
-    "pillar-support": "emerald",
-  };
-  const pillarDirectory = (pillarId: string) => {
-    const tone = pillarTones[pillarId];
-    const departments = DEPARTMENTS.filter((department) =>
-      props.allowedDepartmentIds.includes(department.id) &&
-      PILLAR_DEPARTMENT_IDS[pillarId]?.includes(department.id)
-    );
-    const directorNumbers = [...new Set(departments.map((department) => department.directorNumber).filter((number): number is number => number != null))];
-    const directors = directorNumbers
-      .map((number) => visibleRoster.find((agent) => agent.number === number))
-      .filter((agent): agent is AgentDef => Boolean(agent))
-      // Kompakte Zeile statt voller Karte (Details: Klick = Unterseite, ⓘ = Röntgen-Inspektor, Baum = Hierarchie).
-      .map((agent) => ({
-        ...makeAgentEntity(agent, props.performance, props.earnings),
-        description: agent.role,
-        metrics: undefined,
-        tone: "whiteCard" as const,
-      }));
-    // Kompakte Startansicht (16:9): eine Zeile mit echten Zahlen je Säule. Direktoren, Fachbereiche und alle
-    // Profile bleiben per Klick (Unterseite), im Hierarchie-Baum und im Glasplatten-Schichtenblick erreichbar.
-    const deptIds = new Set(departments.map((department) => department.id));
-    const inPillar = visibleRoster.filter((agent) => deptIds.has(agent.departmentId));
-    const teamLeads = inPillar.filter((agent) => agent.level === 4).length;
-    const coAgents = inPillar.filter((agent) => agent.level === 5).length;
-    return [
-      makeEntity(
-        `${pillarId}-summary`,
-        `${directors.length} Direktoren · ${departments.length} Fachbereiche`,
-        `Team Leads ${teamLeads} · Team Members ${inPillar.length} · Operative Bots ${coAgents}`,
-        "expertise",
-        { route: pillarId, tone: "whiteCard", clickable: true }
-      ),
-    ];
-  };
-  const columnOne = [
-    makeSection("academic-qualification", "AKADEMISCHE QUALIFIKATION", [
-      makeSection("academic-personnel", "Fach- & Forschungsrollen", [
-        makeEntity("professor-agents", "Professoren-Agenten", "Lehrplan-Design & Forschung · Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-        makeEntity("lecturer-agents", "Dozenten-Agenten", "Fachdidaktik & Mentoring · Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-        makeEntity("prompt-alchemist", "Prompt-Alchemist-Agent", "Feinabstimmung & Metrik-Analyse · Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-        makeEntity("distillation-agent", "Distillation-Agent", "Modellkomprimierung & Wissenstransfer · Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-      ], { layout: "stack", legendId: "expertise", tone: "sapphire" }),
-      makeSection("certification-gateways", "CERTIFICATION GATEWAYS", [
-        makeEntity("training-connection", "Schulungs-Anschluss", "Kurs- und Lernpfad", "expertise", { clickable: false, tone: "whiteCard" }),
-        makeEntity("live-testing", "Live-Testing", "Zertifizierungsstatus aus vorhandenen Profilwerten", "consensus", { clickable: false, tone: "whiteCard" }),
-        makeEntity("recertification", "Re-Zertifizierung", "Prüfintervall nicht separat im Roster gespeichert", "control", { clickable: false, tone: "whiteCard" }),
-        makeEntity("expert-registration", "Experten-Anmeldung & Dialog-Portal", "Keine separate Anmeldeintegration in dieser Ansicht", "expertise", { clickable: false, tone: "whiteCard" }),
-      ], { layout: "stack", legendId: "consensus", tone: "violet" }),
-    ], { layout: "split", legendId: "expertise", tone: "sapphire" }),
-    makeSection("knowledge-management", "WISSENS- & GEDÄCHTNIS-MANAGEMENT", [
-      makeEntity("vector-database", "Zentrale Vektordatenbank / RAG", "Quellkonzept; keine Vektorsuche aus dieser Platine ausgelöst.", "infrastructure", { clickable: false, tone: "turquoise" }),
-      curator
-        ? {         ...makeAgentEntity(curator, props.performance, props.earnings), id: "agent-399", title: "Wissens-Kurator-Agent #399", tone: "turquoise" }
-        : makeEntity("knowledge-curator", "Wissens-Kurator-Agent #399", "Profil #399 ist in diesem Shop-Roster nicht verfügbar.", "expertise", { clickable: false, tone: "turquoise" }),
-        makeEntity("episodic-memory", "Episodisches Kurzzeit-Memory", "Wissensbereich", "data", { clickable: false, tone: "turquoise" }),
-        makeEntity("knowledge-graph", "Knowledge-Graph", `${props.legalRules.length} Rechtsquellen · ${props.capabilities.length} Capabilities`, "infrastructure", { clickable: false, tone: "turquoise" }),
-    ], { layout: "stack", legendId: "infrastructure", tone: "petrol" }),
-  ];
+/** 10 Fachbereiche des Blueprints -> reale DEPARTMENTS-IDs (Anzeige-Label, Abteilungs-ID). */
+const ZONE_DEPARTMENTS: Array<[string, number]> = [
+  ["Workflow", 24], ["Content", 6], ["Code", 25], ["Support", 14], ["Legal/IP", 21],
+  ["Finance", 12], ["Growth", 16], ["BI", 20], ["Product", 2], ["Procurement", 10],
+];
 
-  const columnTwo = [
-    props.ownerShop
-      ? makeEntity("owner-architect", "APP-INHABER / SYSTEM-ARCHITEKT (MENSCH)", "Antik-Gold · Command & Alignment Control ──▶ Meta-KI #000", "command", {
-        dark: true,
-        tone: "antiqueGold",
-        metrics: ["OWNER VETO", "DRY_RUN_MODE"],
-      })
-      : makeEntity("owner-hidden", "Inhabersteuerung", "Owner-only; für Subscriber ausgeblendet.", "command", { clickable: false }),
-    makeSection("core-ai", "CORE AI R&D & OMNI-SENSE LAYER", [
-      makeEntity("llm-kernel", "Large Language Model (LLM) Kernel", "Core-AI-Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-      makeEntity("rl-optimization", "Reinforcement Learning (RL) Optimization", "Core-AI-Funktionsbereich", "feedback", { clickable: false, tone: "whiteCard" }),
-      makeEntity("neuro-symbolic", "Neuro-Symbolic AI Integration", "Core-AI-Funktionsbereich", "expertise", { clickable: false, tone: "whiteCard" }),
-      makeEntity("ethical-ai", "Ethical AI Design Labs", "Core-AI-Funktionsbereich", "control", { clickable: false, tone: "whiteCard" }),
-    ], { layout: "stack", legendId: "expertise", tone: "platinumSlate" }),
-    makeSection("synthetic-data", "SYNTHETIC DATA GENERATOR", [
-      makeEntity("synthetic-scenarios", "Trainingsszenarien", "Funktionsbereich", "data", { clickable: false, tone: "whiteCard" }),
-      makeEntity("edge-case-coverage", "Edge-Case-Abdeckung", "Funktionsbereich", "control", { clickable: false, tone: "whiteCard" }),
-      makeEntity("validation-data", "Validierungsdaten", "Keine künstlichen Events werden erzeugt.", "data", { clickable: false, tone: "whiteCard" }),
-    ], { layout: "stack", legendId: "data", tone: "softSlate" }),
-  ];
+const ZONE_GROUPS = [
+  "ZONE 1 · EBENE 1–3 · Souveräne Spitze & Meta-Führung",
+  "ZONE 2 · EBENE 4–5 · Operative Orchestrierung & 10 Fachbereiche",
+  "ZONE 3 · EBENE 6–8 · KI-Akademie, Überwachung & Forensik",
+  "ZONE 4 · EBENE 9–14 · Infrastruktur, Mandanten & Cockpit",
+  "ZONE 5 · EBENE 15–18 · Frontier & Omega-Erweiterungen",
+] as const;
 
-  const constitutional = makeSection("constitutional", "CONSTITUTIONAL CORE · UNANTASTBARE VERFASSUNG & ETHIK-KERN", [
-    makeEntity("agent-factory-constitutional", "Agenten-Fabrik & HR", `#401 → ∞ · ${props.dynamicCount} dynamische Profile geladen`, "feedback", { route: "agent-factory", metrics: ["OWNER ONLY"], tone: "whiteCard" }),
-    makeEntity("governance-board", "Autonomes Governance Board", "Governance-Ansicht; keine Ausführung durch diese Karte.", "control", { clickable: false, tone: "whiteCard" }),
-    makeEntity("consensus-jury", "Consensus-Engine & Jury", "Prüfprofile #222–#225", "consensus", { route: "staff", metrics: ["#222–#225"], tone: "whiteCard" }),
-    makeEntity("devils-advocate", "Devil's Advocate · Kritiker-Agent #221", "Profil-Drilldown zum vorhandenen Roster-Eintrag.", "control", { route: "agent-221", metrics: ["#221"], tone: "whiteCard" }),
-  ], { layout: "row", legendId: "control", dark: true, tone: "obsidian" });
+function zoneEntity(
+  id: string, title: string, description: string, legendId: LegendId,
+  x: number, y: number, w: number, h: number, group: string, options: Partial<Entity> = {}
+): Entity {
+  return makeEntity(id, title, description, legendId, { group, zone: { x, y, w, h }, tone: "obsidian", ...options });
+}
 
-  const process = makeSection("process-orchestration", "PROCESS ORCHESTRATION LAYER", [
-    makeSection("planning-phases", "Planning ──▶ Execution ──▶ Execution ──▶ Reporting ──▶ Reporting", [
-      makeEntity("planning-phase", "Planning", "Ablaufphase", "process", { clickable: false }),
-      makeEntity("execution-phase-a", "Execution", "Ablaufphase", "process", { clickable: false }),
-      makeEntity("execution-phase-b", "Execution", "Ablaufphase", "process", { clickable: false }),
-      makeEntity("reporting-phase-a", "Reporting", "Ablaufphase", "process", { clickable: false }),
-      makeEntity("reporting-phase-b", "Reporting", "Ablaufphase", "process", { clickable: false }),
-    ], { layout: "row", legendId: "process", tone: "iceBlue" }),
-    makeSection("four-pillars", "FACHBEREICHE & ECOSYSTEM", [
-      makeSection("pillar-workflow", "WORKFLOW & AUTOMATISIERUNG", [
-        makeEntity("workflow-vp", "Bereichsleitung VP/Direktor", "Reale Leitung wird im Abteilungs-Drilldown angezeigt.", "expertise", { clickable: false }),
-        makeEntity("workflow-team-lead", "Team Lead", "Reale Rollenprofile nach Abteilung.", "expertise", { clickable: false }),
-        makeEntity("workflow-team-members", "Team Members", `${allowedDepartments.length} shop-sichtbare Fachabteilungen`, "expertise", { clickable: false }),
-        makeEntity("workflow-workers", "Operative Bots & Worker", "Dynamische Profile bleiben separat gelistet.", "data", { clickable: false }),
-        ...pillarDirectory("pillar-workflow"),
-      ], { layout: "stack", legendId: "expertise", tone: "workflowBlue", route: "pillar-workflow" }),
-      makeSection("pillar-communication", "KOMMUNIKATION & CONTENT", [
-        makeEntity("communication-vp", "Bereichsleitung VP/Direktor", "Bereichsübersicht", "expertise", { clickable: false }),
-        makeEntity("sales-marketing", "Sales & Marketing Teams", "Bereichsübersicht", "process", { clickable: false }),
-        makeEntity("content-dialog", "Content- & Dialog-Teams", "Bereichsübersicht", "process", { clickable: false }),
-        makeEntity("dialog-workers", "Operative Dialog-Worker", "Bereichsübersicht", "data", { clickable: false }),
-        ...pillarDirectory("pillar-communication"),
-      ], { layout: "stack", legendId: "process", tone: "bronze", route: "pillar-communication" }),
-      makeSection("pillar-integration", "CODE & SYSTEM-INTEGRATION", [
-        makeEntity("integration-vp", "Bereichsleitung VP/Direktor", "Bereichsübersicht", "expertise", { clickable: false }),
-        makeEntity("integration-team-lead", "Team Lead", "Bereichsübersicht", "expertise", { clickable: false }),
-        makeEntity("api-specialists", "API-, Datenbank- & Core-Spezialisten", `${props.bindings.length} tatsächliche Interface-Bindings`, "infrastructure", { route: "interfaces" }),
-        makeEntity("code-workers", "Operative Code-Worker", "Bereichsübersicht", "data", { clickable: false }),
-        ...pillarDirectory("pillar-integration"),
-      ], { layout: "stack", legendId: "control", tone: "burgundy", route: "pillar-integration" }),
-      makeSection("pillar-support", "SUPPORT & NUTZER-INTERAKTION", [
-        makeEntity("support-vp", "Bereichsleitung VP/Direktor", "Bereichsübersicht", "expertise", { clickable: false }),
-        makeEntity("support-feedback", "Support & Feedback Teams", "Bereichsübersicht", "process", { clickable: false }),
-        makeEntity("anomaly-support", "Anomaly- & Support-Bots", "Bereichsübersicht", "control", { clickable: false }),
-        makeEntity("support-workers", "Operative Bots & Worker", "Bereichsübersicht", "data", { clickable: false }),
-        ...pillarDirectory("pillar-support"),
-      ], { layout: "stack", legendId: "consensus", tone: "emerald", route: "pillar-support" }),
-      makeSection("world-ecosystem", "EXTENDED REAL-WORLD ECOSYSTEM & SUPPLY CHAIN", [
-        makeEntity("purchasing-agent", "Einkaufs-Agent", "Funktionsbereich", "process", { clickable: false }),
-        makeEntity("logistics-optimizer", "Logistik-Optimierer", "Funktionsbereich", "infrastructure", { clickable: false }),
-        makeEntity("inventory-manager", "Bestands-Manager", "Funktionsbereich", "data", { clickable: false }),
-        makeEntity("customer-market", "KUNDEN-BEZIEHUNG & MARKT-INTEGRATION", "CRM, Markt-Trends und Marketing-Automation", "process", { route: "interfaces" }),
-        makeEntity("crm-agent", "CRM-Agent", "Funktionsbereich", "process", { clickable: false }),
-        makeEntity("market-trend-watcher", "Markt-Trend-Watcher", "Funktionsbereich", "feedback", { clickable: false }),
-        makeEntity("marketing-automation", "Marketing-Automation", "Funktionsbereich", "process", { clickable: false }),
-      ], { layout: "stack", legendId: "process", tone: "sandBronze", route: "interfaces" }),
-    ], { layout: "grid", legendId: "process", tone: "obsidian" }),
-    makeEntity("event-bus", "REAL-TIME EVENT-BUS & MESSAGE BROKER", `${traces.length} tatsächliche Live-Traces · asynchrone Kommunikation / Event-Sourcing`, "data", {
-      tone: "champagne",
-      metrics: ["Latenz aus Trace-Detail, falls vorhanden"],
-    }),
-    makeSection("data-telemetry", "DATA FLOW & PERFORMANCE", [
-      makeSection("integrated-ecosystem", "INTEGRATED ECOSYSTEM & DATA FLOW", [
-        makeEntity("micropipelines", "Enterprise Micropipelines", "Architekturkarte", "data", { clickable: false }),
-        makeEntity("etl-mesh", "ETL Service Mesh", `${props.capabilities.length} Capability-Quellen`, "infrastructure", { route: "interfaces" }),
-      ], { legendId: "data", tone: "turquoise" }),
-      makeSection("system-performance", "SYSTEM PERFORMANCE & TELEMETRY (A/B TESTING)", [
-        makeEntity("kpi-dashboard", "KPI Dashboard", "Nutzungs- und Performance-Daten", "feedback", { clickable: false }),
-        makeEntity("usage-logging", "Usage Statistics & Logging", `${traces.length} Live-Traces verfügbar`, "data", { route: "traces" }),
-      ], { legendId: "feedback", tone: "iceBlue" }),
-    ], { layout: "row", legendId: "data", tone: "whiteCard" }),
-    makeSection("infrastructure", "CORE TECHNICAL INFRASTRUCTURE BACKBONE", [
-      makeEntity("tool-registry", "Tool-Registry & Sandbox", "Architekturkarte", "infrastructure", { clickable: false, tone: "whiteCard" }),
-      makeEntity("safety-controls", "Notfall- & Fallback-Systeme", "Eskalations-Router · Human-in-the-Loop #220 · Kill-Switch", "control", { clickable: false, tone: "whiteCard" }),
-      makeEntity("version-control", "Versionskontrolle & Rollback", "Prompt-Registry · 1-Klick-Rollback · Modell-Routing", "feedback", { clickable: false, tone: "whiteCard" }),
-      makeEntity("zero-trust", "Zero-Trust Security & Multi-Cloud-Edge-Compute Router", "Architekturkarte", "infrastructure", { clickable: false, tone: "whiteCard" }),
-    ], { layout: "row", legendId: "infrastructure", dark: true, tone: "steelSlate" }),
-    makeSection("org-directory", "KI-BELEGschaft & ABTEILUNGEN", [
-      makeEntity("departments", "Shop-sichtbare Fachabteilungen", `${allowedDepartments.length} Abteilungen`, "expertise"),
-      makeEntity("staff", "Alle realen Mitarbeiterprofile", `${visibleRoster.length} feste/dynamische Profile · 50 pro Seite`, "expertise"),
-      makeEntity("specialists", "Fachcluster #301–#400", "Profile nach Cluster", "expertise"),
-      ...(props.ownerShop ? [makeEntity("agent-factory-directory", "Dynamische KI-Fabrik #401 → ∞", `${props.dynamicCount} geladene dynamische Profile`, "feedback", { route: "agent-factory" })] : []),
-    ], { layout: "row", legendId: "expertise" }),
-  ], { layout: "stack", legendId: "process", tone: "processLayer" });
-  const metaSection = meta
+/** Zone 1 (Ebene 1–3) und Zone 2 (Ebene 4–5) des Blueprints. */
+function buildZoneTop(props: Props): Entity[] {
+  const owner = props.ownerShop;
+  const ownerOnly = "Owner-only; für Subscriber ausgeblendet.";
+  const meta = owner ? props.roster.find((agent) => agent.number === 0) : undefined;
+  const [z1, z2] = ZONE_GROUPS;
+  const metaEntity: Entity = meta
     ? {
       ...makeAgentEntity(meta, props.performance, props.earnings),
       id: "meta-hypervisor",
-      title: "ÜBERGEORDNETE META-KI HYPERVISOR-INSTANZ · #000 SYSTEM-GUARDIAN",
+      title: "Übergeordnete Meta-KI (Hypervisor)",
+      description: "#000 System-Guardian · Hypervisor-Instanz",
       route: "meta-hypervisor",
-      dark: true,
-      tone: "royalBlue" as const,
-      legendId: "command" as const,
+      legendId: "command",
+      tone: "obsidian",
+      group: z1,
+      metrics: ["#000"],
+      zone: { x: 590, y: 60, w: 620, h: 80 },
     }
-    : makeEntity(
-      "meta-hypervisor",
-      "ÜBERGEORDNETE META-KI HYPERVISOR-INSTANZ · #000 SYSTEM-GUARDIAN",
-      "Owner-only System-Guardian",
-      "command",
-      { dark: true, tone: "royalBlue", metrics: ["#000"] }
+    : zoneEntity("meta-hypervisor", "Übergeordnete Meta-KI (Hypervisor)", ownerOnly, "command", 590, 60, 620, 80, z1, { clickable: false });
+  const departments = ZONE_DEPARTMENTS.map(([label, departmentId], index) => {
+    const department = DEPARTMENTS.find((item) => item.id === departmentId);
+    const allowed = props.allowedDepartmentIds.includes(departmentId);
+    return zoneEntity(
+      `department-${departmentId}`,
+      `${index + 1}. ${label}`,
+      allowed ? (department?.name ?? `Abteilung ${departmentId}`) : "Nicht gebucht",
+      "process",
+      74 + index * 166, 350, 158, 64, z2,
+      { clickable: allowed, route: `department-${departmentId}`, sourceType: "department", sourceId: String(departmentId), departmentId }
     );
-  const columnThree = [
-    ...(props.ownerShop ? [constitutional, metaSection] : []),
-    process,
-  ];
-
-  const ownerColumnFour = [
-    makeSection("self-healing", "KI-ÜBERWACHUNG & SELF-HEALING", [
-      makeEntity("quality-verifier", "KI-QM & Quellen-Verifikator", `${props.legalRules.length} Rechtsregeln · ${props.capabilities.length} Capabilities`, "control", { route: "laws" }),
-      makeEntity("red-team", "Red-Teaming & Chaos-Monkey-Agent", "Prüfbereich; kein Chaos-Test wird hier gestartet.", "control", { clickable: false }),
-      makeEntity("code-surgeon", "Live-Code-Chirurg / Auto-Patch", "Nicht über die Platinenkarte ausführbar.", "feedback", { clickable: false }),
-      makeEntity("finops-watchdog", "FinOps, Watchdog & DSB", "Überwachungsbereich", "feedback", { clickable: false }),
-      makeSection("external-ecosystem", "Externes Ökosystem & A2A/UCP-Marktplatz", props.bindings.map((binding) =>
-        makeEntity(
-          `binding-${binding.id}`,
-          binding.interfaceKey,
-          `${binding.agentKey} · ${binding.status}`,
-          binding.isNewlySpawnedInterface ? "command" : "infrastructure",
-          { sourceType: "binding", sourceId: binding.id, relationKeys: [binding.agentKey, binding.interfaceKey], newlySpawned: binding.isNewlySpawnedInterface }
-        )
-      ), { legendId: "infrastructure", tone: "sandBronze", route: "interfaces" }),
-    ], { legendId: "feedback", tone: "sageEmerald" }),
-    makeSection("ledger", "UNVERÄNDERLICHES ENTSCHEIDUNGS-LEDGER", [
-      makeEntity("transaction-log", "Transaktions-Protokollierung", `${traces.length} Live-Traces`, "data", { route: "traces" }),
-      makeEntity("audit-trail", "Audit-Trail-Sicherung", `${props.legalRules.length} Rechtsquellen`, "control", { route: "laws" }),
-      makeEntity("crypto-validation", "Krypto-Validierung · GoBD SHA-256", "Quell- und Trace-Hashes, sofern gespeichert; kein zusätzliches GoBD-Siegel.", "control", { route: "laws" }),
-      ...traces.map((trace) => entityForTrace(trace, visibleRoster)),
-    ], { legendId: "control", dark: true, tone: "deepBordeaux" }),
-  ];
-  const subscriberColumnFour = [
-    makeSection("subscriber-sources", "QUELLEN & SYSTEMSTATUS", [
-      makeEntity("laws", "Rechts- & Steuerquellen", `${props.legalRules.length} shop-sichtbare Quellen`, "control", { clickable: false }),
-      makeEntity("interfaces", "Capabilities & Bindings", `${props.capabilities.length} Capabilities · ${props.bindings.length} Bindings`, "infrastructure", { clickable: false }),
-      makeEntity("traces", "Gespeicherte Live-Traces", `${traces.length} shop-sichtbare Ereignisse`, "data", { clickable: false }),
-    ], { legendId: "infrastructure" }),
-  ];
-  const columnFour = props.ownerShop ? ownerColumnFour : subscriberColumnFour;
-
+  });
   return [
-    makeColumn("column-1", "SPALTE 1 · WISSEN & QUALIFIKATION", 310, columnOne, "Akademie · Zertifizierung · Gedächtnis"),
-    makeColumn("column-2", "SPALTE 2 · INHABER & CORE AI", 250, columnTwo, "Command · R&D · synthetische Validierung"),
-    makeColumn("column-3", "SPALTE 3 · HAUPT-MATRIX", 920, columnThree, "Governance · Orchestrierung · Event-Bus · Backbone"),
-    makeColumn("column-4", "SPALTE 4 · ÜBERWACHUNG & LEDGER", 310, columnFour, "Qualität · Audit · Quellen"),
+    zoneEntity("owner-architect", "App-Inhaber (Mensch)", owner ? "Command & Alignment Control · OwnerRule & Veto" : ownerOnly, "command", 20, 20, 420, 90, z1, { clickable: owner, metrics: owner ? ["OWNER VETO", "DRY_RUN_MODE"] : undefined }),
+    zoneEntity("constitutional", "Constitutional Core [Unantastbare Verfassung]", owner ? "Ethik-Kern & unveränderliche Schutzregeln" : ownerOnly, "control", 1360, 20, 420, 90, z1, { clickable: owner }),
+    metaEntity,
+    zoneEntity("agent-factory-constitutional", "Agenten-Fabrik (Spawner)", `#401 → ∞ · ${props.dynamicCount} dynamische Profile geladen`, "process", 350, 150, 500, 90, z1, { route: "agent-factory", clickable: owner, metrics: ["OWNER ONLY"] }),
+    zoneEntity("consensus-jury", "Consensus-Jury & Devil's Advocate", "Prüfprofile #222–#225 · Kritiker-Agent #221", "control", 950, 150, 500, 90, z1, { route: "staff", metrics: ["#221", "#222–#225"] }),
+    zoneEntity("process-orchestration", "Master-Orchestrator (CEO-Agent)", "Planung · Ausführung · Reporting über alle Fachbereiche", "command", 640, 270, 520, 50, z2),
+    ...departments,
+    zoneEntity("external-ecosystem", "Externes A2A- & MCP-Gateway", `${props.bindings.length} Interface-Bindings`, "infrastructure", 640, 430, 520, 40, z2, { route: "interfaces" }),
   ];
+}
+
+/** Zone 3 (Ebene 6–8), Zone 4 (Ebene 9–14) und Zone 5 (Ebene 15–18 + Legende). */
+function buildZoneBottom(props: Props, traces: LiveConnectionTraceDto[]): Entity[] {
+  const [, , z3, z4, z5] = ZONE_GROUPS;
+  const card = (id: string, title: string, legendId: LegendId = "infrastructure") =>
+    makeEntity(id, title, "Architekturkarte", legendId, { clickable: false, tone: "obsidian" });
+  return [
+    zoneEntity("academic-qualification", "KI-Akademie", "Professoren-, Dozenten-Agenten & Prompt-Alchemist", "process", 20, 500, 400, 150, z3, { route: "academy" }),
+    zoneEntity("certification-gateways", "Certification Gateway", "Zertifizierung aus vorhandenen Profilwerten", "control", 450, 500, 260, 150, z3, { route: "academy" }),
+    zoneEntity("self-healing", "Überwachung & Forensik", `KI-QM, Watchdog, Chaos-Monkey, Live-Code-Chirurg · ${props.legalRules.length} Rechtsregeln`, "control", 740, 500, 540, 150, z3, { route: "self-healing" }),
+    zoneEntity("ledger", "Unveränderliches Krypto-Audit-Ledger (SHA-256)", `${traces.length} Live-Traces · Quell- und Trace-Hashes`, "data", 1310, 500, 470, 150, z3, { route: "ledger" }),
+    zoneEntity("infrastructure", "Infrastruktur", `Vektordatenbank RAG, Knowledge-Graph, Tool-Registry & Sandbox · ${props.capabilities.length} Capabilities`, "infrastructure", 20, 680, 560, 150, z4),
+    zoneEntity("tenant-billing", "Mandanten & Monetarisierung", "Billing & Multi-Tenant-Isolation (Architekturkarte)", "infrastructure", 620, 680, 560, 150, z4, { clickable: false }),
+    zoneEntity("cockpit-failover", "Cockpit & Failover", "Human-Experience Live-Cockpit XAI & Multi-Provider-Failover", "data", 1220, 680, 560, 150, z4, { route: "traces", metrics: [`${traces.length} Traces`] }),
+    zoneEntity("frontier-group", "Frontier Ebenen 15–17", "", "infrastructure", 20, 860, 840, 170, z5, {
+      clickable: false,
+      layout: "grid",
+      children: [
+        card("mcp-a2a-dual-stack", "MCP & A2A Dual-Stack"),
+        card("business-ontology", "Unternehmens-Business-Ontologie"),
+        card("anti-pathology-guard", "Anti-Pathologie-Wächter", "control"),
+        card("ephemeral-compute", "Ephemeral Compute"),
+        card("formal-verification", "Formal Verification Circuit-Breaker", "control"),
+      ],
+    }),
+    zoneEntity("omega-group", "Omega Ebene 18", "", "feedback", 890, 860, 470, 170, z5, {
+      clickable: false,
+      layout: "row",
+      children: [
+        card("smart-contract-escrow", "Smart-Contract-Treuhand", "feedback"),
+        card("post-quantum-security", "Post-Quantum-Security", "feedback"),
+        card("time-travel-debugger", "Time-Travel-Debugger", "feedback"),
+      ],
+    }),
+    zoneEntity("zone-legend", "LEGENDE", "", "command", 1390, 860, 390, 170, z5, { clickable: false }),
+  ];
+}
+
+function buildZoneEntities(props: Props, traces: LiveConnectionTraceDto[]): Entity[] {
+  return [...buildZoneTop(props), ...buildZoneBottom(props, traces)];
 }
 
 function buildChildren(
@@ -1271,7 +1202,7 @@ function buildChildren(
     : props.roster.filter((agent) => agent.number !== 0 && props.allowedDepartmentIds.includes(agent.departmentId));
   const toAgent = (agent: AgentDef) => makeAgentEntity(agent, props.performance, props.earnings);
 
-  if (!leaf) return buildRootEntities(props, traces);
+  if (!leaf) return buildZoneEntities(props, traces);
   if (!props.ownerShop && ["owner-architect", "constitutional", "meta-hypervisor", "agent-factory"].includes(leaf)) return [];
   const pillarId = Object.prototype.hasOwnProperty.call(PILLAR_DEPARTMENT_IDS, leaf) ? leaf : undefined;
   if (pillarId) {
@@ -1298,7 +1229,7 @@ function buildChildren(
     return [
       { id: "event-bus", title: "Real-Time Event-Bus", description: `${traces.length} gespeicherte Traces`, group: "center", legendId: "data", metrics: ["Live-Ereignisse"] },
       { id: "traces", title: "Beobachtete Verbindungen", description: "Nur protokollierte Ereignisse", group: "center", legendId: "data" },
-      { id: "departments", title: "Fachabteilungen", description: `${departments.length} sichtbare Abteilungen`, group: "center", legendId: "expertise" },
+      { id: "departments", title: "Fachabteilungen", description: `${departments.length} sichtbare Abteilungen`, group: "center", legendId: "process" },
     ];
   }
   if (leaf === "event-bus") {
@@ -1321,7 +1252,7 @@ function buildChildren(
   }
   if (leaf === "core-ai") {
     return [
-      { id: "specialists", title: "Fachcluster", description: "Vorhandene Mitarbeitercluster.", group: "center", legendId: "expertise" },
+      { id: "specialists", title: "Fachcluster", description: "Vorhandene Mitarbeitercluster.", group: "center", legendId: "process" },
       { id: "interfaces", title: "Capabilities & Schnittstellen", description: "Gespeicherte Quellen und Bindings.", group: "center", legendId: "infrastructure" },
     ];
   }
@@ -1424,7 +1355,7 @@ function buildChildren(
       title: cluster === "apex-system-coordinator" ? "#400 · System-Koordinator" : agents[0]?.role ?? cluster,
       description: `${agents.length} Profile im Cluster`,
       group: "specialists",
-      legendId: "expertise",
+      legendId: "process",
       metrics: [`#${Math.min(...agents.map((agent) => agent.number))}–#${Math.max(...agents.map((agent) => agent.number))}`],
     }));
   }
@@ -1533,14 +1464,14 @@ function buildSubpageColumns(
       ...(director ? [makeAgentEntity(director, props.performance, props.earnings)] : []),
       ...(leader && leader.number !== director?.number ? [makeAgentEntity(leader, props.performance, props.earnings)] : []),
       ...(!director && !leader
-        ? [makeEntity("subpage-no-leadership", department ? `Leitung · Abt. ${department.id}` : "Zuständige Bereichsleitung", "Kein sichtbares Leitungsprofil im Roster.", "expertise", { clickable: false })]
+        ? [makeEntity("subpage-no-leadership", department ? `Leitung · Abt. ${department.id}` : "Zuständige Bereichsleitung", "Kein sichtbares Leitungsprofil im Roster.", "process", { clickable: false })]
         : []),
-    ], { layout: "stack", legendId: "expertise", tone: "platinumSlate" }),
+    ], { layout: "stack", legendId: "process", tone: "platinumSlate" }),
     makeSection("subpage-core-models", "KI-KERNMODELLE & ZUSTÄNDIGKEIT", [
       makeEntity("subpage-model-policy", "Modell-Routing", "Im bestehenden Roster-/Dashboard-Datensatz nicht je Bereich ausgewiesen.", "infrastructure", { clickable: false }),
       makeEntity("subpage-reversible", "Reversible Aufgaben", "Ausführung bleibt den vorhandenen Autopilot-/Owner-Regeln unterstellt.", "control", { clickable: false }),
       makeEntity("subpage-irreversible", "Irreversible Aufgaben", "Die Karte löst keine Freigabe und keine Aktion aus.", "control", { route: "approval-queue" }),
-    ], { legendId: "expertise" }),
+    ], { legendId: "process" }),
   ];
   const columnThree = [
     makeSection("subpage-governance", "ABTEILUNGS-GOVERNANCE", [
@@ -1559,7 +1490,7 @@ function buildSubpageColumns(
       ...(props.ownerShop && props.dynamicCount > 0
         ? [makeEntity("subpage-dynamic-cluster", "Dynamische KI-Hilfs-Bots #401 → ∞", `${props.dynamicCount} dynamische Profile insgesamt; geladene Profile erscheinen hier einzeln.`, "feedback", { route: "agent-factory" })]
         : []),
-    ], { legendId: "expertise" }),
+    ], { legendId: "process" }),
     makeEntity("event-bus", "BEREICHS-EVENT-BUS", `${traces.length} tatsächlich gespeicherte Ereignisse; keine Trace-Endpunkte angenommen.`, "data", { metrics: ["Event-Sourcing"] }),
     makeSection("subpage-bindings", "AKTIVE SCHNITTSTELLEN & BINDINGS", [
       ...capabilities,
@@ -1597,6 +1528,126 @@ function buildSubpageColumns(
   ];
 }
 
+/** Verbindungen des 5-Zonen-Blueprints: [Quelle, Ziel, Leuchtfarbe, Paketname, Quell-Seite, Ziel-Seite]. */
+type Side = "t" | "b" | "l" | "r";
+type ZoneLink = [string, string, LegendId, string, Side, Side];
+
+function zoneLinks(): ZoneLink[] {
+  const links: ZoneLink[] = [
+    ["owner-architect", "meta-hypervisor", "command", "Owner-Direktive", "r", "l"],
+    ["constitutional", "meta-hypervisor", "control", "Verfassungs-Prüfung", "l", "r"],
+    ["meta-hypervisor", "agent-factory-constitutional", "command", "Spawn-Auftrag", "b", "t"],
+    ["meta-hypervisor", "consensus-jury", "control", "Jury-Vorlage", "b", "t"],
+    ["meta-hypervisor", "process-orchestration", "command", "Master-Plan", "b", "t"],
+    ["agent-factory-constitutional", "process-orchestration", "process", "Neue Agenten", "b", "l"],
+    ["consensus-jury", "process-orchestration", "control", "Konsens-Urteil", "b", "r"],
+  ];
+  for (const [, departmentId] of ZONE_DEPARTMENTS) {
+    links.push(["process-orchestration", `department-${departmentId}`, "process", "Fachauftrag", "b", "t"]);
+    links.push([`department-${departmentId}`, "external-ecosystem", "infrastructure", "Tool-Zugriff", "b", "t"]);
+  }
+  links.push(
+    ["external-ecosystem", "academic-qualification", "infrastructure", "Wissens-Zugang", "b", "t"],
+    ["external-ecosystem", "self-healing", "control", "Prüf-Telemetrie", "b", "t"],
+    ["external-ecosystem", "ledger", "data", "Audit-Ereignisse", "b", "t"],
+    ["academic-qualification", "certification-gateways", "process", "Zertifizierung", "r", "l"],
+    ["certification-gateways", "self-healing", "control", "Freigabe-Prüfung", "r", "l"],
+    ["self-healing", "ledger", "data", "Forensik-Hashes", "r", "l"],
+    ["academic-qualification", "infrastructure", "infrastructure", "Wissensbasis", "b", "t"],
+    ["self-healing", "tenant-billing", "infrastructure", "Isolations-Check", "b", "t"],
+    ["ledger", "cockpit-failover", "data", "Live-Traces", "b", "t"],
+    ["infrastructure", "tenant-billing", "infrastructure", "Mandanten-Daten", "r", "l"],
+    ["tenant-billing", "cockpit-failover", "data", "XAI-Status", "r", "l"],
+    ["infrastructure", "frontier-group", "infrastructure", "Frontier-Stack", "b", "t"],
+    ["tenant-billing", "omega-group", "feedback", "Omega-Treuhand", "b", "t"],
+    ["cockpit-failover", "zone-legend", "data", "Cockpit-Signale", "b", "t"],
+  );
+  return links;
+}
+
+function layoutZoneGraph(
+  entities: Entity[],
+  focusedId: string | null,
+  focusedLegend: LegendId | null,
+  visibleLegend: Set<LegendId>,
+  onActivate: (entity: Entity) => void,
+  onHover: (entity: Entity | null) => void,
+  onInspect: (entity: Entity) => void
+): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const ids = new Set(entities.map((entity) => entity.id));
+  const links = zoneLinks().filter(([source, target]) => ids.has(source) && ids.has(target));
+  const edgeId = (index: number) => `zone-edge-${index}`;
+  const focusedEdgeId = focusedId?.startsWith("edge-") ? focusedId.slice(5) : null;
+  const active = new Set<string>();
+  if (focusedEdgeId) {
+    links.forEach(([source, target], index) => {
+      if (edgeId(index) === focusedEdgeId) { active.add(source); active.add(target); }
+    });
+  } else if (focusedId) {
+    active.add(focusedId);
+    for (const [source, target] of links) {
+      if (source === focusedId) active.add(target);
+      if (target === focusedId) active.add(source);
+    }
+  }
+  const nodes: FlowNode[] = entities.filter((entity) => entity.zone).map((entity) => ({
+    id: entity.id,
+    type: "zone" as const,
+    position: { x: entity.zone!.x, y: entity.zone!.y },
+    width: entity.zone!.w,
+    height: entity.zone!.h,
+    data: {
+      entity, onActivate, onHover, onInspect, visibleLegend, focusedId, focusedLegend,
+      relatedIds: new Set(active), activeColumns: active,
+    },
+    ariaLabel: entity.title,
+    draggable: false,
+  }));
+  const allRecords = flattenEntities(entities);
+  const traceIds = allRecords.filter((entity) => entity.sourceType === "trace" && entity.sourceId).map((entity) => entity.sourceId!);
+  const bindingIds = allRecords.filter((entity) => entity.sourceType === "binding" && entity.sourceId).map((entity) => entity.sourceId!);
+  const ownerAccess = ids.has("owner-architect");
+  const routeFor = (legendId: LegendId): string =>
+    legendId === "command" ? (ownerAccess ? "owner-architect" : "departments")
+      : legendId === "control" ? "laws"
+        : legendId === "data" ? "traces"
+          : legendId === "infrastructure" ? "interfaces"
+            : legendId === "feedback" ? "self-healing"
+              : "departments";
+  const edges: FlowEdge[] = links.map(([source, target, legendId, packet, from, to], index) => {
+    const related = active.has(source) && active.has(target);
+    const dimmed = Boolean(
+      (focusedId && !(focusedEdgeId ? focusedEdgeId === edgeId(index) : related)) ||
+      (focusedLegend && focusedLegend !== legendId) ||
+      !visibleLegend.has(legendId)
+    );
+    return {
+      id: edgeId(index),
+      source,
+      target,
+      sourceHandle: `s${from}`,
+      targetHandle: `t${to}`,
+      type: "apex" as const,
+      selectable: true,
+      markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLORS[legendId] },
+      style: { stroke: EDGE_COLORS[legendId] },
+      data: {
+        legendId,
+        packet: `${packet} · 1`,
+        laneOffset: 0,
+        dimmed,
+        showLabel: focusedEdgeId === edgeId(index) || (focusedLegend === legendId && index % 6 === 0),
+        fast: legendId === "command" || legendId === "data",
+        relatedIds: [source, target],
+        traceIds: legendId === "data" || legendId === "control" ? traceIds : [],
+        bindingIds: legendId === "infrastructure" ? bindingIds : [],
+        route: routeFor(legendId),
+      },
+    };
+  });
+  return { nodes, edges };
+}
+
 function layoutGraph(
   entities: Entity[],
   focusedId: string | null,
@@ -1606,6 +1657,9 @@ function layoutGraph(
   onHover: (entity: Entity | null) => void,
   onInspect: (entity: Entity) => void
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  if (entities.some((entity) => entity.zone)) {
+    return layoutZoneGraph(entities, focusedId, focusedLegend, visibleLegend, onActivate, onHover, onInspect);
+  }
   const positions = new Map([
     ["column-1", { x: 20, width: 310 }],
     ["column-2", { x: 370, width: 250 }],
@@ -1614,14 +1668,14 @@ function layoutGraph(
   ]);
   const ownerAccess = entities.some((entity) => entityContains(entity, "owner-architect"));
   const baseLanes: Array<[string, string, LegendId, string]> = [
-    ["column-1", "column-3", "expertise", "Akademie / Wissen"],
+    ["column-1", "column-3", "process", "Akademie / Wissen"],
     ["column-1", "column-3", "data", "Wissensfluss"],
     ["column-2", "column-3", "command", "Command & Alignment"],
     ["column-2", "column-3", "feedback", "Meta Feedback Loop"],
     ["column-3", "column-4", "control", "Control / Audit"],
     ["column-3", "column-4", "data", "Event- & Datenfluss"],
     ["column-1", "column-4", "infrastructure", "Quellen / Prüfung"],
-    ["column-2", "column-4", "consensus", "Governance / Konsens"],
+    ["column-2", "column-4", "feedback", "Governance / Konsens"],
   ];
   const laneSpecs = baseLanes.flatMap(([source, target, legendId, packet], laneIndex) => {
     const siblings = baseLanes.filter((lane) => lane[0] === source && lane[1] === target);
@@ -1636,8 +1690,6 @@ function layoutGraph(
       laneOffset: (siblingIndex * 5 + replica - (siblings.length * 5 - 1) / 2) * 8,
     }));
   });
-  const countEntities = (entity: Entity): number =>
-    1 + (entity.children?.reduce((count, child) => count + countEntities(child), 0) ?? 0);
   const columns = entities.filter((entity) => entity.isColumn);
   const relatedIds = getEntityFamily(entities, focusedId);
   const focusedLane = laneSpecs.find((lane) => focusedId === `edge-${lane.id}`);
@@ -1713,10 +1765,10 @@ function layoutGraph(
         fast: legendId === "command" || legendId === "data",
         relatedIds: [source, target],
         traceIds: legendId === "data" || legendId === "control" ? traceIds : [],
-        bindingIds: legendId === "infrastructure" || legendId === "expertise" ? bindingIds : [],
+        bindingIds: legendId === "infrastructure" || legendId === "process" ? bindingIds : [],
         route: legendId === "command"
           ? ownerAccess ? "owner-architect" : "departments"
-          : legendId === "expertise"
+          : legendId === "process"
             ? "academy"
             : legendId === "control"
               ? "laws"
@@ -1789,7 +1841,7 @@ function FlowCanvas({
           }}
           aria-label="Interaktive Organigramm-Platine"
         >
-          <Background color="#334155" gap={24} />
+          <Background color="rgba(212, 175, 55, 0.18)" gap={24} />
           <Controls />
           <MiniMap
             pannable
@@ -1965,7 +2017,7 @@ function configureChart(chart: OrgChartLike, host: HTMLElement, rows: TreeRow[],
     .nodeContent((node) => treeCardHtml(node.data, 232, 92, counts.get(node.data.id) ?? 0))
     .linkUpdate(function (node) {
       const hot = Boolean(node.data._upToTheRootHighlighted);
-      this.setAttribute("stroke", hot ? "#C5A059" : "#64748B");
+      this.setAttribute("stroke", hot ? "#D4AF37" : "#64748B");
       this.setAttribute("stroke-width", hot ? "4" : "1.5");
       this.classList.toggle("eos-tree-link-hot", hot);
     })
@@ -2247,11 +2299,17 @@ export function EnterpriseOsOrganigram(props: Props) {
       setSelectedEntity(entity);
       return;
     }
+    // Die 10 Fachbereichs-Kacheln der Zone 2 öffnen direkt die Mitarbeiterliste der verknüpften Abteilung.
+    if (entity.sourceType === "department" && entity.departmentId != null) {
+      props.onPickDept(entity.departmentId);
+      setSelectedEntity(entity);
+      return;
+    }
     const activePath = pathKey ? pathKey.split("/") : [];
     navigate([...activePath, entity.route ?? entity.id]);
     setSelectedEntity(entity);
     setSelectedEdge(null);
-  }, [navigate, pathKey]);
+  }, [navigate, pathKey, props]);
   const hoverEntity = useCallback((entity: Entity | null) => {
     setHoveredEntity(entity);
     setHoveredEdge(null);
@@ -2320,7 +2378,7 @@ export function EnterpriseOsOrganigram(props: Props) {
     const searchableRoster = props.ownerShop
       ? props.roster
       : props.roster.filter((agent) => agent.number !== 0 && props.allowedDepartmentIds.includes(agent.departmentId));
-    const rootItems = buildRootEntities(props, traces);
+    const rootItems = buildZoneEntities(props, traces);
     const collectRootSearchItems = (entities: Entity[]) => {
       for (const entity of entities) {
         if (entity.isColumn) {
@@ -2346,7 +2404,7 @@ export function EnterpriseOsOrganigram(props: Props) {
         title: `Abt. ${department.id} · ${department.name}`,
         description: department.mechanism,
         group: "department",
-        legendId: department.kind === "panel" ? "control" : department.kind === "harmony" ? "feedback" : "expertise",
+        legendId: department.kind === "panel" ? "control" : department.kind === "harmony" ? "feedback" : "process",
         sourceType: "department",
         sourceId: String(department.id),
       };
@@ -2546,7 +2604,7 @@ export function EnterpriseOsOrganigram(props: Props) {
             </div>
           </div>
           <div className="eos-toolbar-group">
-            <button type="button" className="eos-button" aria-pressed={mode === "flow"} onClick={() => switchMode("flow")}>🏛️ 4-Spalten-Enterprise-OS</button>
+            <button type="button" className="eos-button" aria-pressed={mode === "flow"} onClick={() => switchMode("flow")}>🏛️ 5-Zonen-Blueprint · Ebene 1–18</button>
             <button type="button" className="eos-button" aria-pressed={mode === "tree"} onClick={() => switchMode("tree")}>🌳 Lebender Hierarchie-Baum</button>
             <button type="button" className="eos-button" aria-pressed={mode === "glass"} onClick={() => switchMode("glass")}>📚 Glasplatten-Schichtenblick Ebene 0–5</button>
             <button type="button" className="eos-button" aria-pressed={mode === "touch"} onClick={() => setMode("touch")}>Touch-Kartenansicht</button>
@@ -2665,7 +2723,7 @@ export function EnterpriseOsOrganigram(props: Props) {
       </header>
 
       <div className="eos-main-grid">
-        <main className="eos-panel" data-mode={mode}>
+        <main className="eos-panel" data-mode={mode} data-zones={path.length === 0}>
           {mode === "flow" && browserReady ? (
             <FlowCanvas
               nodes={graph.nodes}

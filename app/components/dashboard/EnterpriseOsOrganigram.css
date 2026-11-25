@@ -1229,4 +1229,306 @@
       animation: none;
     }
   }
+
+  /* =====================================================================================
+   * OBSIDIAN-GOLD (überschreibt die hellen Regeln oben; steht bewusst am Ende der Layer)
+   * ===================================================================================== */
+  .eos-shell {
+    --eos-obsidian: #0b0e14;
+    --eos-gold: #d4af37;
+    --eos-card: #111622;
+    color: #f8fafc;
+    background: #0b0e14;
+    border: 1px solid rgb(212 175 55 / 45%);
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .eos-header,
+  .eos-inspector,
+  .eos-column-node,
+  .eos-hover-tooltip,
+  .eos-canvas-legend,
+  .eos-search-dialog,
+  .eos-glass-layer {
+    color: #f8fafc;
+    background: #111622;
+    border: 1px solid #d4af37;
+    box-shadow: 0 0 24px rgb(212 175 55 / 12%);
+  }
+
+  .eos-panel {
+    background: #0b0e14;
+    border-color: rgb(212 175 55 / 45%);
+  }
+
+  .eos-flow {
+    background: #0b0e14;
+    border: 1px solid rgb(212 175 55 / 45%);
+  }
+
+  .eos-column-heading {
+    color: #d4af37;
+    background: #111622;
+    border-bottom-color: rgb(212 175 55 / 45%);
+  }
+
+  .eos-column-heading small,
+  .eos-hover-tooltip small,
+  .eos-search-heading p,
+  .eos-search-option small,
+  .eos-search-empty,
+  .eos-search-footer,
+  .eos-tree-hint {
+    color: #94a3b8;
+  }
+
+  .eos-column-content {
+    background: #0b0e14;
+  }
+
+  .eos-hover-tooltip strong,
+  .eos-inspector-section,
+  .eos-search-heading h2,
+  .eos-canvas-legend > strong,
+  .eos-canvas-legend button {
+    color: #f8fafc;
+  }
+
+  .eos-hover-tooltip strong,
+  .eos-canvas-legend > strong,
+  .eos-search-heading h2 {
+    color: #d4af37;
+  }
+
+  .eos-inspector-section,
+  .eos-search-heading,
+  .eos-search-footer {
+    border-color: rgb(212 175 55 / 25%);
+  }
+
+  .eos-search-footer {
+    background: #0b0e14;
+  }
+
+  .eos-search-input {
+    color: #f8fafc;
+    background: #0b0e14;
+    border-bottom-color: rgb(212 175 55 / 25%);
+  }
+
+  .eos-search-option {
+    color: #f8fafc;
+  }
+
+  .eos-search-option:hover,
+  .eos-search-option[aria-selected="true"] {
+    color: #0b0e14;
+    background: #d4af37;
+  }
+
+  .eos-search-option:hover small,
+  .eos-search-option[aria-selected="true"] small {
+    color: #1a2234;
+  }
+
+  .eos-button {
+    color: #f8fafc;
+    background: #111622;
+    border-color: rgb(212 175 55 / 70%);
+  }
+
+  .eos-button[aria-pressed="true"],
+  .eos-button:hover:not(:disabled) {
+    color: #0b0e14;
+    background: #d4af37;
+  }
+
+  .eos-chip {
+    color: #f8fafc;
+    background: #0b0e14;
+    border-color: rgb(212 175 55 / 55%);
+  }
+
+  .eos-info-button {
+    color: #d4af37;
+    background: #0b0e14;
+    border-color: #d4af37;
+  }
+
+  .eos-info-button:hover,
+  .eos-info-button:focus-visible {
+    color: #0b0e14;
+    background: #d4af37;
+    outline-color: #f8fafc;
+  }
+
+
+  /* ---- Knoten: dunkle Schiefer-Karten mit goldenen Überschriften ---- */
+  .eos-entity,
+  .eos-entity.eos-node-dark,
+  .eos-zone-node {
+    color: #f8fafc;
+    background: linear-gradient(160deg, #1a2234 0%, #111622 100%);
+    border: 1px solid rgb(212 175 55 / 35%);
+    box-shadow: 0 3px 12px rgb(0 0 0 / 35%);
+  }
+
+  .eos-entity:hover,
+  .eos-entity:focus-within,
+  .eos-zone-node:hover,
+  .eos-zone-node:focus-within,
+  .eos-column-selected {
+    border: 1.5px solid #d4af37;
+    box-shadow: 0 0 18px rgb(212 175 55 / 45%);
+    outline: none;
+  }
+
+  .eos-entity-heading,
+  .eos-entity-link {
+    color: #d4af37;
+  }
+
+  .eos-entity-link:hover,
+  .eos-entity-link:focus-visible {
+    color: #f7e7ce;
+    background: rgb(212 175 55 / 12%);
+    text-decoration-color: #d4af37;
+  }
+
+  .eos-entity-description {
+    color: #f8fafc;
+    opacity: .85;
+  }
+
+  .eos-entity .eos-chip {
+    color: #f8fafc;
+    background: #0b0e14;
+    border-color: rgb(212 175 55 / 45%);
+  }
+
+  .eos-entity[data-entity-id^="pillar-"] > .eos-entity-children > .eos-entity,
+  .eos-entity[data-entity-id="infrastructure"] > .eos-entity-children > .eos-entity,
+  .eos-entity[data-entity-id="academic-personnel"] > .eos-entity-children > .eos-entity,
+  .eos-entity[data-entity-id="certification-gateways"] > .eos-entity-children > .eos-entity {
+    --entity-foreground: #f8fafc !important;
+    background: linear-gradient(160deg, #1a2234 0%, #111622 100%) !important;
+  }
+
+  /* ---- 5-Zonen-Karten ---- */
+  .eos-zone-node {
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px;
+    overflow: hidden;
+    border-radius: 10px;
+    border-left: 4px solid var(--node-accent, #d4af37);
+  }
+
+  .eos-zone-clickable {
+    cursor: pointer;
+  }
+
+  .eos-zone-node .eos-entity-heading {
+    font-size: 12px;
+  }
+
+  .eos-zone-node .eos-entity-description {
+    -webkit-line-clamp: 3;
+  }
+
+  .eos-zone-node .eos-entity-children {
+    margin-top: 4px;
+  }
+
+  .eos-zone-node .eos-entity-layout-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .eos-zone-node .eos-entity-layout-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .eos-zone-legend {
+    display: grid;
+    gap: 3px 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 10px;
+  }
+
+  .eos-zone-legend code {
+    color: #94a3b8;
+    font-size: 9px;
+  }
+
+  .eos-zone-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+  }
+
+  /* Schwebende Legende entfällt auf der Zonen-Startebene: die LEGENDE-Karte sitzt in Zone 5. */
+  .eos-panel[data-mode="flow"][data-zones="true"] .eos-canvas-legend {
+    display: none;
+  }
+
+  /* ---- Pulsierende Verbindungen ---- */
+  .eos-edge-path {
+    stroke-dasharray: 10 6;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+
+  .eos-edge-pulse {
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+
+  .eos-edge-packet {
+    color: #f8fafc;
+    background: #0b0e14;
+    border-color: #d4af37;
+  }
+
+  /* ---- Hierarchie-Baum und Glasplatten ---- */
+  .eos-tree-host {
+    background: #0b0e14;
+    border-color: rgb(212 175 55 / 45%);
+  }
+
+  .eos-tree-card {
+    border: 1px solid rgb(212 175 55 / 55%);
+    box-shadow: 0 0 14px rgb(212 175 55 / 12%);
+  }
+
+  .eos-tree-error {
+    color: #fecaca;
+    background: #111622;
+    border-color: #ef4444;
+  }
+
+  .eos-glass-plate {
+    color: #f8fafc;
+    background: linear-gradient(135deg, #1a2234, #111622);
+    border-color: rgb(212 175 55 / 35%);
+    box-shadow: 0 0 24px rgb(212 175 55 / 12%);
+  }
+
+  .eos-fullscreen:fullscreen {
+    background: #0b0e14;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .eos-edge-pulse {
+      display: none;
+    }
+  }
+
 }
