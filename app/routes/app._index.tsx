@@ -448,7 +448,21 @@ export default function AppIndex() {
             </>
           )}
           {view === "cockpit" && (
-            <ExecutiveCommandWheel initialTraces={[]} executivePulse={d.executivePulse} />
+            <ExecutiveCommandWheel
+              initialTraces={d.liveTraces}
+              executivePulse={d.executivePulse}
+              dynamicCount={d.extraAgents}
+              ownerShop={d.owner}
+              roster={d.roster}
+              earnings={d.earnings}
+              performance={d.performance}
+              allowedDepartmentIds={d.allowedDepartmentIds}
+              legalRules={d.legalTaxRules}
+              capabilities={d.capabilities}
+              bindings={d.interfaceBindings}
+              onPickDept={pickDept}
+              onSelectModule={selectModuleFromBoard}
+            />
           )}
           {view === "board" && (
             <Suspense fallback={<div role="status">Die interaktive Firmen-Platine wird geladen…</div>}>

@@ -1,9 +1,48 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, lazy, Suspense, type CSSProperties } from "react"
 import { useFetcher } from "react-router"
-import { C, btn, btnGold, card } from "./theme"
+import { C, btn, card } from "./theme"
 import type { LiveConnectionTraceDto } from "../../services/live-connection.server"
+import type { AgentDef, AgentPerformanceSnapshot, EarningsSummary } from "../../services/agent-types"
 import { ExecutivePulse } from "./ExecutivePulse"
 import { DEPARTMENTS } from "../../services/agent-roster"
+
+type LegalRule = {
+  id: string
+  ruleKey: string
+  jurisdiction: string
+  sourceUrl: string
+  sourceTitle: string
+  sourceHash: string
+  verifiedAt: string
+  reviewStatus: string
+}
+type Capability = {
+  id: string
+  domainKey: string
+  displayName: string
+  feasibility: string
+  sourceUrl: string | null
+  sourceTitle: string | null
+  evidenceSummary: string
+  verifiedAt: string | null
+  expiresAt: string | null
+  estimatedCostEur: number | null
+  riskLevel: string
+  isVerified: boolean
+}
+type Binding = {
+  id: string
+  agentKey: string
+  interfaceKey: string
+  status: string
+  lastVerifiedAt: string | null
+  createdAt: string
+  isNewlySpawnedInterface: boolean
+}
+
+const EnterpriseOsOrganigram = lazy(() =>
+  import("./EnterpriseOsOrganigram").then((module) => ({ default: module.EnterpriseOsOrganigram }))
+)
 
 type InvestmentStage = "autopilot" | "enterprise" | "apex"
 
@@ -18,9 +57,34 @@ const STAGE_ORDER: InvestmentStage[] = ["autopilot", "enterprise", "apex"]
 interface WheelProps {
   initialTraces: LiveConnectionTraceDto[]
   executivePulse: string[]
+  dynamicCount?: number
+  ownerShop?: boolean
+  roster?: AgentDef[]
+  earnings?: EarningsSummary
+  performance?: AgentPerformanceSnapshot
+  allowedDepartmentIds?: number[]
+  legalRules?: LegalRule[]
+  capabilities?: Capability[]
+  bindings?: Binding[]
+  onPickDept?: (id: number) => void
+  onSelectModule?: (moduleId: string) => void
 }
 
-export function ExecutiveCommandWheel({ initialTraces, executivePulse }: WheelProps) {
+export function ExecutiveCommandWheel({
+  initialTraces,
+  executivePulse,
+  dynamicCount = 0,
+  ownerShop = true,
+  roster = [],
+  earnings,
+  performance,
+  allowedDepartmentIds,
+  legalRules = [],
+  capabilities = [],
+  bindings = [],
+  onPickDept,
+  onSelectModule,
+}: WheelProps) {
   const [view, setView] = useState<"cockpit" | "organigram">("cockpit")
   const [stage, setStage] = useState<InvestmentStage>("autopilot")
   const [showInfo, setShowInfo] = useState<{ departmentId: number } | null>(null)
@@ -28,7 +92,6 @@ export function ExecutiveCommandWheel({ initialTraces, executivePulse }: WheelPr
   const { threads: threadCount } = stageConf
   const tenDepartments = DEPARTMENTS.slice(0, 10)
   const fetcher = useFetcher<{ traces: LiveConnectionTraceDto[]; snapshotAt: string }>()
-  const loadFetcher = fetcher.load
   const latestTraces = fetcher.data?.traces ?? initialTraces
   const centerX = 500
   const centerY = 400
@@ -41,6 +104,51 @@ export function ExecutiveCommandWheel({ initialTraces, executivePulse }: WheelPr
     return { angle, x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) }
   }
   const deptWheelLabel = (name: string) => (name.length > 14 ? `${name.slice(0, 14)}…` : name)
+
+  const orgAllowed = allowedDepartmentIds ?? DEPARTMENTS.map((department) => department.id)
+  const orgEarnings: EarningsSummary = earnings ?? {
+    perAgent: {},
+    team: {},
+    army: { monthReal: 0, totalReal: 0, monthPotential: 0, totalPotential: 0 },
+  }
+  const orgPerformance: AgentPerformanceSnapshot = performance ?? {
+    status: "unavailable",
+    message: "Keine Leistungsdaten für diese Ansicht.",
+    byAgent: {},
+  }
+
+  // Umschalter: 1:1 Gesamt-Organigramm (18 Ebenen)
+  if (view === "organigram") {
+    return (
+      <section style={{ background: C.slate, minHeight: "100vh", color: C.text }}>
+        <header style={{ padding: 24, borderBottom: `1px solid ${C.line}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <strong style={{ color: C.champagne }}>1:1 Gesamt-Organigramm (18 Ebenen)</strong>
+            <button type="button" style={btn} onClick={handleViewToggle}>
+              Command-Rad (Live Cockpit)
+            </button>
+          </div>
+        </header>
+        <Suspense fallback={<div style={{ padding: 24, color: C.muted }}>Organigramm wird geladen…</div>}>
+          <EnterpriseOsOrganigram
+            dynamicCount={dynamicCount}
+            ownerShop={ownerShop}
+            roster={roster}
+            earnings={orgEarnings}
+            performance={orgPerformance}
+            allowedDepartmentIds={orgAllowed}
+            legalRules={legalRules}
+            capabilities={capabilities}
+            bindings={bindings}
+            initialTraces={initialTraces}
+            onPickDept={onPickDept ?? (() => {})}
+            onSelectModule={onSelectModule ?? (() => {})}
+            executivePulse={executivePulse}
+          />
+        </Suspense>
+      </section>
+    )
+  }
 
   return (
     <section
