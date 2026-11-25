@@ -43,8 +43,8 @@ export interface EarningsRow {
 
 export interface EarningsSummary {
   perAgent: Record<string, EarningsRow>;
-  team: Record<string, EarningsRow>;
-  army: EarningsRow;
+  team: Record<string, EarningsRow> | { totalReal: number; totalPotential: number };
+  army: EarningsRow | { totalReal: number; totalPotential: number };
 }
 
 export interface AgentPerformanceSummary {

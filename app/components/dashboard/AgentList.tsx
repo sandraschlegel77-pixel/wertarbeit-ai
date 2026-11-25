@@ -85,7 +85,7 @@ export function AgentList({ roster, earnings, performance, audits, dept, onDept,
             key={a.key}
             agent={a}
             earn={earnings.perAgent[a.key]}
-            team={earnings.team[a.key]}
+            team={earnings.perAgent[a.key]}
             audit={audits[a.key]}
             performance={performance.byAgent[a.key]}
           />

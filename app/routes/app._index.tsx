@@ -3,6 +3,8 @@ import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
+import { startTelemetryEngine } from "../services/real-telemetry-engine.server";
+import type { InvestmentLevel } from "../components/ui/SingularityPrimitives";
 import { loadDashboard } from "../services/dashboard-loader.server";
 import { handleDashboardAction } from "../services/dashboard-actions.server";
 import { DASH_CSS, C, badge, btn, btnGold, card, eur } from "../components/dashboard/theme";
@@ -25,6 +27,7 @@ import { OwnerDirectiveBar } from "../components/dashboard/OwnerDirectiveBar";
 import { DomainInfoButton } from "../components/dashboard/DomainInfoButton";
 import { GlobalQuickJump } from "../components/dashboard/GlobalQuickJump";
 import { ExecutiveCommandWheel } from "../components/dashboard/ExecutiveCommandWheel";
+import { SingularityCockpitLayout } from "../components/dashboard/SingularityCockpitLayout";
 import { useCoinRain } from "../components/monitor/CoinRain";
 import { DEPARTMENTS } from "../services/agent-roster";
 import { LEGAL_RULE_PROFILES } from "../services/legal-tax-core";
@@ -37,6 +40,8 @@ const EnterpriseOsOrganigram = lazy(() =>
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
+  // Telemetry Engine initialisieren (idempotent, nur erster Aufruf startet Worker)
+  startTelemetryEngine(session.shop, "APEX_OMEGA_PRIME" as const);
   return loadDashboard(session.shop, admin);
 };
 
@@ -280,9 +285,16 @@ export default function AppIndex() {
     : d.paused;
   const pauseValue = isPaused ? "false" : "true";
   const activeView = visibleViews.find((entry) => entry.id === view)!;
+  const armyEarnings = {
+
+    monthReal: "monthReal" in d.earnings.army ? d.earnings.army.monthReal : 0,
+    totalReal: d.earnings.army.totalReal,
+    monthPotential: "monthPotential" in d.earnings.army ? d.earnings.army.monthPotential : 0,
+    totalPotential: d.earnings.army.totalPotential,
+  };
   const liveShowSlides = useMemo(() => [
     { title: "Shop-Status", detail: `${d.demoInventory ? "Demo-Daten" : "Live-Daten"} · ${d.inventory.items} Bestandseinheiten · Datenstand ${d.snapshotAt.slice(0, 16).replace("T", " ")} UTC` },
-    { title: "Interne Zuordnung", detail: `${eur(d.earnings.army.monthReal)} echt diesen Monat · ${eur(d.earnings.army.monthPotential)} Potenzial (Dry-Run)` },
+    { title: "Interne Zuordnung", detail: `${eur(armyEarnings.monthReal)} echt diesen Monat · ${eur(armyEarnings.monthPotential)} Potenzial (Dry-Run)` },
     { title: "Vorbereitungen", detail: `${d.preparationDesk.pendingCount} offene Fertig-Tisch-Einträge · ${d.approvals.length} Freigaben · ${d.rewardVault.items.length} Vorteilsfälle` },
     { title: "Schutzstatus", detail: `${d.paused ? "KI-Pause aktiv" : d.dryRun ? "Dry-Run aktiv" : "Live-Modus"} · Datenbank ${d.databaseHealth.status === "online" ? `${d.databaseHealth.latencyMs ?? "?"} ms` : "nicht erreichbar"}` },
   ], [d]);
@@ -352,7 +364,7 @@ export default function AppIndex() {
                 dryRun={d.dryRun}
                 paused={d.paused}
                 harmony={d.harmony}
-                army={d.earnings.army}
+                army={armyEarnings}
                 extraAgents={d.extraAgents}
                 inventory={d.inventory}
                 activeModules={d.activeModules}
@@ -448,7 +460,7 @@ export default function AppIndex() {
             </>
           )}
           {view === "cockpit" && (
-            <ExecutiveCommandWheel
+            <SingularityCockpitLayout
               initialTraces={d.liveTraces}
               executivePulse={d.executivePulse}
               dynamicCount={d.extraAgents}
@@ -457,9 +469,6 @@ export default function AppIndex() {
               earnings={d.earnings}
               performance={d.performance}
               allowedDepartmentIds={d.allowedDepartmentIds}
-              legalRules={d.legalTaxRules}
-              capabilities={d.capabilities}
-              bindings={d.interfaceBindings}
               onPickDept={pickDept}
               onSelectModule={selectModuleFromBoard}
             />
