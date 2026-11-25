@@ -1,0 +1,39 @@
+# AETHERION OMEGA // X-18 · CLINERULES (Luxus-Design-Standard)
+
+## Allgemein
+- Alle Views nutzen automatisch den Obsidian-Gold Luxus-Standard (`app/styles/aetherion-luxury.css`).
+- Hintergrund: `#0B0E14` (Obsidian). Akzent: `#D4AF37` (Gold), `#10B981` (Smaragd).
+- Preise: Immer `0,00 €` für den Core / Inhaber-Preis. Keine `Â¬`-Zeichen.
+- UTF-8 sauber: Keine kaputten Umlaute oder Sonderzeichen.
+
+## Command-Rad (AmbientCoreReactor)
+- 10 Abteilungen (`1. Workflow` … `10. Procurement`) im Kreis um das Zentrum.
+- Goldene (`#D4AF37`) und smaragdgrüne (`#10B981`) Speichen mit wandernden Lichtimpulsen (`<animateMotion>`).
+- Hover-Zoom auf Knoten (`scale(1.16)`), Klick öffnet 4-Tab-Inspektor (Gehirn/Prompt, Akademie/Trust, Forensik, Sandbox).
+- AgentCommsBubble zwischen aktiven Abteilungen.
+
+## Header / Top-Bar
+- GLOBAL KILL-SWITCH: Ein-Klick-Freeze aller Worker (`SYSTEM HALTED — SAFE MODE`), Reaktivierung nach Bestätigung.
+- Cmd + K Meta-KI Kommandozeile: Gold-Befehlsfenster mit Direktiven für alle 10 Abteilungen, R&D-Labor, 28 Behörden.
+- VOICE-CONTROL: Schaltfläche für Sprachsteuerung.
+- STANDARD | EXPERTE Umschalter.
+- COMMAND-RAD (LIVE) | 1:1 ORGANIGRAMM (18 EBENEN) Umschalter.
+- Investitions-Regler: Autopilot 299 € | Enterprise 990 € | Apex Sovereign 3.500 €+.
+- Branding: `AETHERION OMEGA // X-18`.
+- Button: `VERMARKTUNG & SHOWREEL` (öffnet 15s-Live-Tour, Branchen-Chamäleon, 60s-Domain-Scanner, 4-Stufen-Pricing `299 €–25.000 €+`, DSGVO-/EU-AI-Act-Zertifikat).
+
+## Footer / Zeitreise-Debugger
+- TIME-TRAVEL-DEBUGGER-Leiste unter dem Rad.
+- Live-Latenz (z. B. `84 ms`), Live-Traces, Modell, Auto-Rollback-Guard.
+
+## SHA-256 Audit Ledger
+- Jeder Eintrag: eigener, unterschiedlicher 64-stelliger Hash + Zeitstempel.
+- Unterschiedliche Timestamps pro Eintrag.
+
+## Institutionen & R&D
+- Sektor 3 → 28 Institutionen (Polizei PATROL-01, FBI BUREAU-X, Feuerwehr RESCUE-112, Krankenhaus MED-CENTER, Quarantäne CELL-9 + Bewährung).
+- Sektor 5 → R&D Nischen- & Beta-Labor (Karten "Neu erfunden — Verkaufsargument für Ihre Branche", Auto-Snapshot-Schutz).
+
+## Build
+- `npm run typecheck && npm run build` muss fehlerfrei durchlaufen.
+- Backend-Logik nicht überschreiben.

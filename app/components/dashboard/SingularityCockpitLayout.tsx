@@ -14,7 +14,10 @@ import {
 } from "../ui/SingularityPrimitives";
 import { SingularityShell } from "../ui/SingularityShell";
 import { useTelemetryStream } from "../ui/useTelemetryStream";
-import { CommandWheelCanvas, CommandWheelBottomCards } from "./CommandWheelCanvas";
+import { AmbientCoreReactor } from "./AmbientCoreReactor";
+import { CommandWheelBottomCards } from "./CommandWheelCanvas";
+import { InstitutionsPanel } from "./InstitutionsPanel";
+import { RDLab } from "./RDLab";
 import type { AgentDef } from "../../services/agent-types";
 import type { EarningsSummary } from "../../services/agent-types";
 import type { AgentPerformanceSnapshot } from "../../services/agent-types";
@@ -62,9 +65,10 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
   const [activeView, setActiveView] = useState<"command" | "organigramm">("command");
 
   const [liveTracesCount, setLiveTracesCount] = useState(12);
-  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [latencyMs, setLatencyMs] = useState<number | null>(84);
   const [modelName, setModelName] = useState<string>("OLLAMA LOCAL");
   const [autoRollbackArmed, setAutoRollbackArmed] = useState(true);
+  const [voiceActive, setVoiceActive] = useState(false);
 
   const breadcrumbItems = useMemo<{ label: string; onClick?: () => void }[]>(() => [
     { label: "COCKPIT", onClick: () => {} },
@@ -130,7 +134,7 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
   const shellProps: ShellProps = {
     children: (
       <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
-        <CommandWheelCanvas
+        <AmbientCoreReactor
           initialTraces={initialTraces}
           executivePulse={executivePulse}
           dynamicCount={dynamicCount}
@@ -143,8 +147,14 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
           onSelectModule={onSelectModule}
           onSwitchView={handleSwitchView}
           activeView={activeView}
+          killSwitchActive={killSwitchActive}
+          onKillSwitchToggle={handleKillSwitchToggle}
         />
         <CommandWheelBottomCards />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
+          <InstitutionsPanel />
+          <RDLab ownerShop={ownerShop} onApplySnapshot={() => {}} />
+        </div>
       </div>
     ),
     navItems: NAV_ITEMS,

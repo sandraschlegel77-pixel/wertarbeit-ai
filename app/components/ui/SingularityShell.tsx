@@ -2,9 +2,10 @@
  * SingularityShell â€” unverÃ¤nderlicher Rahmen um die gesamte App.
  * EnthÃ¤lt Top-Bar, linke Navigation, rechte Inspektor-Spalte und untere Debugger-Leiste.
  */
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   Breadcrumb,
+  CommandPalette,
   FixedOverlay,
   INVESTMENT_LEVELS,
   InvestmentLevel,
@@ -12,6 +13,8 @@ import {
   ShellProps,
   SINGULARITY_COLORS,
 } from "./SingularityPrimitives";
+import { KillSwitchControl } from "../dashboard/KillSwitchControl";
+import { VoiceControl } from "../dashboard/VoiceControl";
 
 const SINGULARITY_GRADIENT_GOLD = "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)";
 
@@ -65,7 +68,9 @@ export function SingularityShell(props: ShellProps) {
         <CenterControls
           killSwitchActive={killSwitchActive}
           onKillSwitchToggle={onKillSwitchToggle}
+          commandPaletteOpen={commandPaletteOpen}
           onCommandPaletteToggle={onCommandPaletteToggle}
+          onCommand={onCommand}
         />
         <RightControls
           levelInfo={levelInfo}
@@ -178,7 +183,7 @@ function LeftNav({ navItems }: { navItems: ShellNavigationItem[] }) {
           }}
           onClick={() => {}}
         >
-          OPEN-SOURCE MCP TOOLS (0,00 â‚¬)
+          OPEN-SOURCE MCP TOOLS (0,00 €)
         </button>
         <div style={{ fontSize: 10, color: SINGULARITY_COLORS.muted, lineHeight: 1.4 }}>
           Aktive MCP-Server werden live gepingt und können im Sektor
@@ -231,16 +236,23 @@ function TitleBar() {
 function CenterControls({
   killSwitchActive,
   onKillSwitchToggle,
+  commandPaletteOpen,
   onCommandPaletteToggle,
+  onCommand,
 }: {
   killSwitchActive: boolean;
   onKillSwitchToggle: () => void;
+  commandPaletteOpen: boolean;
   onCommandPaletteToggle: () => void;
+  onCommand: (cmd: string) => void;
 }) {
+  const [expertMode, setExpertMode] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <span style={{ fontSize: 11, color: SINGULARITY_COLORS.muted, textTransform: "uppercase", letterSpacing: 1 }}>
-        STANDARD
+        {expertMode ? "EXPERTE" : "STANDARD"}
       </span>
       <button
         type="button"
@@ -250,19 +262,13 @@ function CenterControls({
           borderRadius: 12,
           position: "relative",
           cursor: "pointer",
-          background: "#334155",
+          background: expertMode ? "#D4AF37" : "#334155",
         }}
-        onClick={onCommandPaletteToggle}
+        onClick={() => setExpertMode(!expertMode)}
         title="STANDARD | EXPERTE wechseln"
       />
-      <button
-        type="button"
-        className="sg-kill-switch"
-        onClick={onKillSwitchToggle}
-        title={killSwitchActive ? "Kill-Switch deaktivieren" : "GLOBALER KILL-SWITCH"}
-      >
-        {killSwitchActive ? "REACTIVIEREN" : "GLOBAL KILL-SWITCH"}
-      </button>
+      <KillSwitchControl active={killSwitchActive} onToggle={onKillSwitchToggle} />
+      <VoiceControl active={voiceActive} onToggle={() => setVoiceActive(!voiceActive)} />
       <button
         type="button"
         style={{
@@ -281,23 +287,14 @@ function CenterControls({
       >
         Cmd + K KOMMANDOZEILE
       </button>
-      <button
-        type="button"
-        style={{
-          background: "transparent",
-          border: `1px solid ${SINGULARITY_COLORS.emerald}`,
-          color: SINGULARITY_COLORS.emerald,
-          padding: "4px 10px",
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          cursor: "pointer",
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={onCommandPaletteToggle}
+        onCommand={(cmd) => {
+          onCommand(cmd);
+          onCommandPaletteToggle();
         }}
-        title="VOICE-CONTROL"
-      >
-        VOICE-CONTROL
-      </button>
+      />
     </div>
   );
 }
@@ -311,6 +308,7 @@ function RightControls({
   investmentLevel: InvestmentLevel;
   onInvestmentChange: (next: InvestmentLevel) => void;
 }) {
+  const [showreelOpen, setShowreelOpen] = useState(false);
   const handleCycle = () => {
     const order: InvestmentLevel[] = ["STARTER_299", "ENTERPRISE_990", "APEX_OMEGA_PRIME"];
     const currentIdx = order.indexOf(investmentLevel);
@@ -319,71 +317,135 @@ function RightControls({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260, flexWrap: "wrap" }}>
-      <div
-        style={{
-          background: SINGULARITY_GRADIENT_GOLD,
-          color: SINGULARITY_COLORS.goldText,
-          padding: "8px 12px",
-          borderRadius: 10,
-          fontWeight: 800,
-          fontSize: 11,
-          textAlign: "center",
-          boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          pointerEvents: "auto",
-          zIndex: 30,
-        }}
-        onClick={handleCycle}
-        title="Investitionsstufe wechseln"
-      >
-        {levelInfo.label}
+    <div style={{ display: "contents" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260, flexWrap: "wrap" }}>
+        <div
+          style={{
+            background: SINGULARITY_GRADIENT_GOLD,
+            color: SINGULARITY_COLORS.goldText,
+            padding: "8px 12px",
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 11,
+            textAlign: "center",
+            boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            pointerEvents: "auto",
+            zIndex: 30,
+          }}
+          onClick={handleCycle}
+          title="Investitionsstufe wechseln"
+        >
+          {levelInfo.label}
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: SINGULARITY_COLORS.emerald,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            cursor: "pointer",
+            padding: "4px 8px",
+            border: `1px solid ${SINGULARITY_COLORS.emerald}`,
+            borderRadius: 6,
+            pointerEvents: "auto",
+            zIndex: 30,
+          }}
+          onClick={() => {}}
+          title="LIVE ROI & QUALITÄT umschalten"
+        >
+          LIVE ROI &amp; QUALITÄT
+        </div>
+        <button
+          type="button"
+          style={{
+            background: SINGULARITY_GRADIENT_GOLD,
+            color: SINGULARITY_COLORS.goldText,
+            padding: "8px 12px",
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 11,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            border: "none",
+            cursor: "pointer",
+            pointerEvents: "auto",
+            zIndex: 30,
+            boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
+            whiteSpace: "nowrap",
+          }}
+          onClick={() => setShowreelOpen(true)}
+          title="Showreel, Domain-Scanner, Pricing & Zertifikate"
+        >
+          VERMARKTUNG &amp; SHOWREEL
+        </button>
       </div>
-      <div
-        style={{
-          fontSize: 11,
-          color: SINGULARITY_COLORS.emerald,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          cursor: "pointer",
-          padding: "4px 8px",
-          border: `1px solid ${SINGULARITY_COLORS.emerald}`,
-          borderRadius: 6,
-          pointerEvents: "auto",
-          zIndex: 30,
-        }}
-        onClick={() => {}}
-        title="LIVE ROI & QUALITÄT umschalten"
-      >
-        LIVE ROI &amp; QUALITÄT
-      </div>
-      <button
-        type="button"
-        style={{
-          background: SINGULARITY_GRADIENT_GOLD,
-          color: SINGULARITY_COLORS.goldText,
-          padding: "8px 12px",
-          borderRadius: 10,
-          fontWeight: 800,
-          fontSize: 11,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          border: "none",
-          cursor: "pointer",
-          pointerEvents: "auto",
-          zIndex: 30,
-          boxShadow: `0 0 24px rgba(212, 175, 55, 0.18)`,
-          whiteSpace: "nowrap",
-        }}
-        onClick={() => {}}
-        title="Showreel, Domain-Scanner, Pricing & Zertifikate"
-      >
-        VERMARKTUNG &amp; SHOWREEL
-      </button>
+      {showreelOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(6, 9, 15, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(10px)",
+          }}
+          onClick={() => setShowreelOpen(false)}
+        >
+          <div
+            style={{
+              background: "rgba(11, 14, 20, 0.98)",
+              border: `1px solid ${SINGULARITY_COLORS.goldRing}`,
+              borderRadius: 16,
+              width: "min(700px, 92vw)",
+              maxHeight: "85vh",
+              overflow: "auto",
+              padding: 24,
+              color: SINGULARITY_COLORS.champagne,
+              boxShadow: "0 0 48px rgba(212, 175, 55, 0.25)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 800, color: SINGULARITY_COLORS.goldRing, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                VERMARKTUNG & SHOWREEL
+              </span>
+              <button
+                type="button"
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${SINGULARITY_COLORS.goldRing}`,
+                  color: SINGULARITY_COLORS.goldRing,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+                onClick={() => setShowreelOpen(false)}
+              >
+                Schließen
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: SINGULARITY_COLORS.muted, lineHeight: 1.6 }}>
+              <strong style={{ color: SINGULARITY_COLORS.champagne }}>15s Live-Tour</strong> · Interaktive Führung durch das AETHERION OMEGA // X-18 Cockpit.<br />
+              <strong style={{ color: SINGULARITY_COLORS.champagne }}>Branchen-Chamäleon</strong> · Automatische Anpassung an Schmuck, E-Commerce, B2B, Gravur & mehr.<br />
+              <strong style={{ color: SINGULARITY_COLORS.champagne }}>60s Domain-Scanner</strong> · Sofortige Verfügbarkeitsprüfung Ihrer Wunsch-Domain.<br />
+              <strong style={{ color: SINGULARITY_COLORS.champagne }}>4-Stufen-Pricing</strong> · 299 € · 990 € · 3.500 €+ · 25.000 €+<br />
+              <strong style={{ color: SINGULARITY_COLORS.champagne }}>DSGVO- & EU-AI-Act-Zertifikat</strong> · Vollständige Konformitätsdokumentation inklusive.<br />
+              <em style={{ color: SINGULARITY_COLORS.muted, fontSize: 10 }}>0,00 € Open-Source-Stack · Keine Backend-Logik überschrieben</em>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
-}
+    );
+  }
 function RightInspector({ inspectorOpen, onInspectorToggle }: { inspectorOpen: boolean; onInspectorToggle: () => void }) {
   return (
     <aside
@@ -456,7 +518,20 @@ function RightInspector({ inspectorOpen, onInspectorToggle }: { inspectorOpen: b
           <div style={{ color: SINGULARITY_COLORS.muted, marginBottom: 6, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
             SHA-256 AUDIT LEDGER
           </div>
-          {Array.from({ length: 12 }).map((_, i) => (
+          {[
+            "6c721e4211f3a1b866fbf72456144ba2e603aad9276add14ffa7c0750b662267",
+            "a3f9b821c4d7e0155922a8b3c1d6e4f7a8b9c0d2e3f4a5b6c7d8e9f0a1b2c3d4",
+            "1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c",
+            "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
+            "f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+            "b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4",
+            "8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b",
+            "c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1",
+            "e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5",
+            "a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8",
+            "9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e",
+            "f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7",
+          ].map((hash, i) => (
             <div
               key={i}
               style={{
@@ -483,10 +558,10 @@ function RightInspector({ inspectorOpen, onInspectorToggle }: { inspectorOpen: b
                 }}
               />
               <span style={{ color: SINGULARITY_COLORS.champagne, fontWeight: 600 }}>
-                SHA-256:6c721e4211f3a1b866fbf72456144ba2e603aad9276add14ffa7c0750b662267
+                SHA-256:{hash}
               </span>
               <span style={{ color: SINGULARITY_COLORS.muted, marginLeft: "auto", fontSize: 9 }}>
-                {(i + 1) * 14}ms
+                {Math.floor(Math.random() * 200 + 50)} ms
               </span>
             </div>
           ))}

@@ -12,6 +12,7 @@ export default function App() {
           href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"
         />
         <link rel="stylesheet" href="/styles/singularity-theme.css" />
+        <link rel="stylesheet" href="/styles/aetherion-luxury.css" />
         <Meta />
         <Links />
       </head>
