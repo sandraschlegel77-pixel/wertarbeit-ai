@@ -12,8 +12,8 @@ RUN npm ci --include=dev
 COPY . .
 
 RUN npm run build
-RUN npx prisma generate
 RUN npm prune --omit=dev && npm cache clean --force
+RUN npx prisma generate
 
 FROM node:22-alpine AS runtime
 RUN apk add --no-cache openssl
@@ -23,6 +23,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build /app /app
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 3000
 
