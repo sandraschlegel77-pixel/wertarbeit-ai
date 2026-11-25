@@ -2838,7 +2838,7 @@ export function EnterpriseOsOrganigram(props: Props) {
             <span className="eos-chip">Live-Traces: {traces.length}</span>
             <span className="eos-chip">Latenz: {traces[0]?.detail?.match(/duration_ms=(\d+)/)?.[1] ?? "nicht verfügbar"} ms</span>
             <span className="eos-chip">W3C Trace-ID: nicht im Schema verfügbar</span>
-            <span className="eos-chip">Modell/Temperatur: nicht im Trace enthalten</span>
+            <span className="eos-chip">Ollama/Free-Modell: nicht im Trace enthalten</span>
             {moneyView && <span className="eos-chip">Geld- & Zeitwerte: nur gespeicherte Echt-/Potenzialbuchungen</span>}
           </div>
         </main>

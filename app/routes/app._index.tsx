@@ -191,7 +191,7 @@ export default function AppIndex() {
   const view: ViewId = visibleViews.find((entry) => entry.id === requestedView)?.id
     ?? visibleViews.find((entry) => entry.id === requestedViewAlias)?.id
     ?? visibleViews.find((entry) => entry.id === legacyView)?.id
-    ?? "command";
+    ?? "cockpit";
   const requestedTeamSection = searchParams.get("teamSection");
   const teamSection: TeamSection = d.owner && (requestedTeamSection === "earners" || requestedTeamSection === "evolution")
     ? requestedTeamSection
@@ -297,7 +297,7 @@ export default function AppIndex() {
   }
 
   return (
-    <s-page heading={`AtelierPilot AI · ${activeView.label}`}>
+    <s-page heading={`Wertarbeit AI · OMEGA PRIME OS · ${activeView.label}`}>
       <style>{DASH_CSS}</style>
       {layer}
       <div className="dashboard-content" style={{ display: "grid", gap: 14, background: C.slate, padding: 14, borderRadius: 16 }}>

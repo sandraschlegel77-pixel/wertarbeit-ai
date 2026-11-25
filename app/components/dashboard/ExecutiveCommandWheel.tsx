@@ -168,6 +168,9 @@ export function ExecutiveCommandWheel({
               Executive Live Cockpit • Runde Command-Rad-Ansicht
             </strong>
             <span style={{ color: C.muted, fontSize: 11 }}>0,00 € Core-Stack</span>
+            <span style={{ color: C.gold, fontSize: 11, border: `1px solid ${C.gold}`, padding: "2px 6px", borderRadius: 4 }}>
+              {stageConf.short}
+            </span>
           </div>
           <button
             type="button"

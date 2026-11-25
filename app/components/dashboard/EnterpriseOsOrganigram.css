@@ -1532,3 +1532,63 @@
   }
 
 }
+/* ---- OMEGA PRIME: Controls top-right + dark theme ( nicht mehr links unten ) ---- */
+.eos-flow .react-flow__controls {
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #111622 !important;
+  border: 1px solid #d4af37 !important;
+  border-radius: 10px !important;
+  padding: 6px !important;
+  box-shadow: 0 0 18px rgba(212, 175, 55, 0.35) !important;
+  transform: none !important;
+}
+
+.eos-flow .react-flow__controls-button {
+  background: #111622 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(212, 175, 55, 0.55) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+.eos-flow .react-flow__controls-button:hover {
+  background: #d4af37 !important;
+  color: #0b0e14 !important;
+}
+
+.eos-flow .react-flow__controls-button svg {
+  fill: #f8fafc !important;
+  stroke: #f8fafc !important;
+}
+
+/* Edge-Labels im Ruhezustand ausblenden (nur bei Hover/Klick sichtbar) */
+.eos-edge-packet {
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.eos-edge-packet:hover,
+.eos-edge-packet:focus,
+.eos-edge-packet.selected {
+  opacity: 1 !important;
+}
+
+/* Telemetrie-Footer-Stil */
+.eos-legend span.eos-chip {
+  display: inline-block;
+  background: #111622;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #f8fafc;
+  font-size: 9px;
+  margin-right: 6px;
+}
