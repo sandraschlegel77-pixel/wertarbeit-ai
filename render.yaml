@@ -1,13 +1,15 @@
-# Render.com Blueprint (24/7-Hosting). Geheimnisse (sync: false) trägst du im Render-Dashboard ein.
-# Hinweis: Render Free hat keine persistente Disk. App-Datenbank daher extern über DATABASE_URL
-# anbinden (z. B. PostgreSQL); die App-Dateien auf dem Render-Dateisystem sind flüchtig.
+# Render.com Blueprint (Primary Server 1 — 24/7-Hosting, Render Free Web Service).
+# Geheimnisse (sync: false) im Render-Dashboard eintragen.
+# Hinweis: Render Free hat keine persistente Disk. App-Datenbank extern über DATABASE_URL
+# (PostgreSQL/Neon/Supabase) oder TURSO_DATABASE_URL anbinden; App-Dateien auf dem
+# Render-Dateisystem sind flüchtig.
 services:
   - type: web
-    name: atelierpilot-ai
+    name: aetherion-omega-x18-primary
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /privacy
+    healthCheckPath: /api/health
     envVars:
       - key: PORT
         value: "3000"
@@ -20,6 +22,8 @@ services:
       - key: BILLING_LIVE
         value: "false"
       - key: DATABASE_URL
+        sync: false
+      - key: TURSO_DATABASE_URL
         sync: false
       - key: SHOPIFY_API_KEY
         sync: false
@@ -36,4 +40,10 @@ services:
       - key: GEMINI_API_KEYS
         sync: false
       - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: HF_TOKEN
         sync: false

@@ -611,3 +611,5 @@ export default function AppIndex() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
+
+

@@ -1,0 +1,41 @@
+# Koyeb — Not-Server 2 (Free Nano) für den APEX Rescue-112 Failover.
+# Nutzt denselben Docker-Image-Build wie der Primary (Render).
+name: aetherion-omega-x18-not-kor
+services:
+  - name: aetherion-omega-x18-not
+    image: ghcr.io/your-org/aetherion-omega-x18:latest
+    plan: nano
+    region: fra
+    port: 3000
+    env:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: "3000"
+      - name: DRY_RUN_MODE
+        value: "true"
+      - name: DATABASE_URL
+        secret: true
+      - name: TURSO_DATABASE_URL
+        secret: true
+      - name: GEMINI_API_KEYS
+        secret: true
+      - name: GROQ_API_KEY
+        secret: true
+      - name: OPENROUTER_API_KEY
+        secret: true
+      - name: OLLAMA_BASE_URL
+        secret: true
+      - name: HF_TOKEN
+        secret: true
+    healthcheck:
+      path: /api/health
+      interval: 60
+      timeout: 5
+      start_period: 40
+      retries: 3
+    routes:
+      - path: /api/*
+        service: aetherion-omega-x18-not
+      - path: /
+        service: aetherion-omega-x18-not
