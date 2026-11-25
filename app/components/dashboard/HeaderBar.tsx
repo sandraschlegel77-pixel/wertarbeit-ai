@@ -101,6 +101,14 @@ export function HeaderBar({
             <div style={{ fontSize: 12, color: C.muted }}>Das autonome Familienatelier-Gehirn · Wertarbeit Manufaktur</div>
           </div>
         </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", fontSize: 11 }}>
+          <a href="/institution/patrol-01" style={{ color: C.gold, textDecoration: "underline", whiteSpace: "nowrap", marginRight: 6 }}>PATROL-01</a>
+          <a href="/institution/bureau-x" style={{ color: C.gold, textDecoration: "underline", whiteSpace: "nowrap", marginRight: 6 }}>BUREAU-X</a>
+          <a href="/institution/rescue-112" style={{ color: C.gold, textDecoration: "underline", whiteSpace: "nowrap", marginRight: 6 }}>RESCUE-112</a>
+          <a href="/institution/med-center" style={{ color: C.gold, textDecoration: "underline", whiteSpace: "nowrap", marginRight: 6 }}>MED-CENTER</a>
+          <a href="/institution/rnd" style={{ color: C.gold, textDecoration: "underline", whiteSpace: "nowrap", marginRight: 6 }}>R&D Nischen-Labor</a>
+          <span style={{ color: C.muted }}>· 28 Institutionen im Ledger</span>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           <span style={badge(C.emerald)}>{isOwner ? "KI-Steuerung mit Inhaber-Veto" : "Gebuchte Fachbereiche"}</span>
           {isOwner
@@ -112,6 +120,12 @@ export function HeaderBar({
           {isOwner && <span style={badge(C.muted)}>Interner Speed-Score {harmony.speed.toFixed(0)} %</span>}
           <button type="button" style={btn} onClick={onQr}>QR-Code · Handy-Monitor</button>
           <a href="/mobile-monitor" style={{ ...btn, textDecoration: "none" }}>/mobile-monitor</a>
+          <button type="button" style={{ ...btnGold, marginLeft: 8 }} onClick={onCoinRain}>
+            VERMARKTUNG &amp; SHOWREEL
+            <span style={{ fontSize: 9, marginLeft: 8, opacity: 0.8 }}>
+              15s Live-Tour · Branchen-Chamäleon · 60s Domain-Scanner · Pricing 299€–25.000€+ · DSGVO/EU-AI Act
+            </span>
+          </button>
         </div>
       </div>
 

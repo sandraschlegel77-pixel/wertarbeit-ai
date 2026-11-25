@@ -83,7 +83,7 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
       style={{
         position: "relative",
         width: "100%",
-        height: "100%",
+        height: "min(540px, 100%)",
         display: "flex",
         flexDirection: "column",
         gap: 16,
@@ -95,8 +95,8 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           type="button"
           style={{
             padding: "6px 14px",
-            background: activeView === "command" ? "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)" : "rgba(16, 22, 33, 0.6)",
-            color: activeView === "command" ? "#141006" : "#D4AF37",
+            background: activeView === "command" ? "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)" : "rgba(212, 175, 55, 0.12)",
+            color: "#D4AF37",
             border: "1px solid #D4AF37",
             borderRadius: 8,
             fontWeight: 800,
@@ -112,9 +112,9 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
           type="button"
           style={{
             padding: "6px 14px",
-            background: activeView === "organigramm" ? "linear-gradient(180deg, #E2BE68 0%, #B68A2C 100%)" : "rgba(16, 22, 33, 0.6)",
-            color: activeView === "organigramm" ? "#141006" : "#D4AF37",
-            border: "1px solid #D4AF37",
+            background: activeView === "organigramm" ? "linear-gradient(180deg, #F8FAFC 0%, #E2E8F0 100%)" : "rgba(248, 250, 252, 0.08)",
+            color: "#F8FAFC",
+            border: "1px solid #F8FAFC",
             borderRadius: 8,
             fontWeight: 800,
             fontSize: 11,
@@ -129,8 +129,8 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
 
       <div
         style={{
-          flex: 1,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           minHeight: 0,
@@ -342,10 +342,6 @@ export function CommandWheelCanvas(props: CommandWheelCanvasProps) {
         {/* Rechte Seite: Zwei Rauchglas-Karten */}
         <div
           style={{
-            position: "absolute",
-            right: 20,
-            bottom: 20,
-            width: 340,
             display: "flex",
             flexDirection: "column",
             gap: 16,

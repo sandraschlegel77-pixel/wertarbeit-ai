@@ -150,7 +150,8 @@ function TitleBar() {
           textOverflow: "ellipsis",
         }}
       >
-        APEX OMEGA PRIME TERMINUS - SINGULARITY LIVE COCKPIT
+        AETHERION OMEGA // X-18
+        Sovereign Enterprise OS · Engineered by Wertarbeit AI
       </span>
     </div>
   );
@@ -495,7 +496,7 @@ function RightInspector({
                 }}
               />
               <span style={{ color: SINGULARITY_COLORS.champagne, fontWeight: 600 }}>
-                SHA-256:{`${i + 1}`.repeat(8)}
+                SHA-256:6c721e4211f3a1b866fbf72456144ba2e603aad9276add14ffa7c0750b662267
               </span>
               <span style={{ color: SINGULARITY_COLORS.muted, marginLeft: "auto", fontSize: 9 }}>
                 {(i + 1) * 14}ms

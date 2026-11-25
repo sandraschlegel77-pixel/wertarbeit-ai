@@ -61,7 +61,7 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [activeView, setActiveView] = useState<"command" | "organigramm">("command");
 
-  const [liveTracesCount, setLiveTracesCount] = useState(0);
+  const [liveTracesCount, setLiveTracesCount] = useState(12);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [modelName, setModelName] = useState<string>("OLLAMA LOCAL");
   const [autoRollbackArmed, setAutoRollbackArmed] = useState(true);

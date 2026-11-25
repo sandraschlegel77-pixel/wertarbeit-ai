@@ -309,7 +309,7 @@ export default function AppIndex() {
   }
 
   return (
-    <s-page heading={`Wertarbeit AI · OMEGA PRIME OS · ${activeView.label}`}>
+    <s-page heading={`AETHERION OMEGA // X-18 · Sovereign Enterprise OS · Engineered by Wertarbeit AI · ${activeView.label}`}>
       <style>{DASH_CSS}</style>
       {layer}
       <div className="dashboard-content" style={{ display: "grid", gap: 14, background: C.slate, padding: 14, borderRadius: 16 }}>
