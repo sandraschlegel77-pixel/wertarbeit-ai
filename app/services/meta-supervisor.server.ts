@@ -2,12 +2,13 @@ import { z } from "zod";
 import db from "../db.server";
 import type { HarmonyScore } from "./agent-types";
 import { isShopPaused } from "./autopilot-control.server";
+import { routeAiCompletion } from "./ai-provider-router.server";
 import { formatEur } from "./pricing";
 
 export type SupervisorTask = "monitor" | "legal" | "finance" | "creative" | "governance";
 
 export interface FreeModelSelection {
-  provider: "openrouter" | "local";
+  provider: "cloud" | "local";
   model: string;
   task: SupervisorTask;
   maxTokens: number;
@@ -18,8 +19,8 @@ export function selectOptimalFreeModel(
   primaryModel?: string
 ): FreeModelSelection {
   const maxTokens = task === "legal" || task === "finance" ? 320 : task === "monitor" ? 120 : 220;
-  if (process.env.OPENROUTER_API_KEY && primaryModel !== "openrouter/free") {
-    return { provider: "openrouter", model: "openrouter/free", task, maxTokens };
+  if (process.env.AI_CLOUD_ENABLED === "true" && primaryModel !== "local-rules") {
+    return { provider: "cloud", model: "configured-provider-pool", task, maxTokens };
   }
   return { provider: "local", model: "local-rules", task, maxTokens };
 }
@@ -53,63 +54,41 @@ async function requestFreeReview(
   subject: string,
   summary: string
 ): Promise<MetaAuditResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return {
-      decision: "PASS",
-      mode: "LOCAL_RULES",
-      model: "local-rules",
-      findings: ["Kein externer Prüfer konfiguriert; nur deterministische lokale Regeln ausgeführt."],
-    };
-  }
-
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: AbortSignal.timeout(8000),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: selection.model,
-        temperature: 0,
-        max_tokens: selection.maxTokens,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              'You are an independent safety reviewer. Return JSON only: {"decision":"PASS|REVIEW|BLOCK","findings":["..."]}. Never override owner rules, dry-run, or human approval. Flag unsupported legal, financial, or guaranteed claims. This is not legal or tax advice.',
-          },
-          {
-            role: "user",
-            content: JSON.stringify({ task: selection.task, subject, summary }),
-          },
-        ],
-      }),
-    });
-    if (!response.ok) throw new Error(`OpenRouter antwortete mit HTTP ${response.status}.`);
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error("OpenRouter lieferte keine Prüfer-Antwort.");
-    const parsed = ModelReview.safeParse(JSON.parse(content));
-    if (!parsed.success) throw new Error("OpenRouter-Prüfer-Antwort hatte ein ungültiges Format.");
-    return { ...parsed.data, mode: "CROSS_MODEL", model: selection.model };
-  } catch (error) {
+  const routed = await routeAiCompletion({
+    maxTokens: selection.maxTokens,
+    systemPrompt:
+      'You are an independent safety reviewer. Return JSON only: {"decision":"PASS|REVIEW|BLOCK","findings":["..."]}. Never override owner rules, dry-run, or human approval. Flag unsupported legal, financial, or guaranteed claims. This is not legal or tax advice.',
+    userPrompt: JSON.stringify({ task: selection.task, subject, summary }),
+  });
+  if (!routed.ok || !routed.text) {
     return {
       decision: "REVIEW",
       mode: "REVIEW_REQUIRED",
-      model: selection.model,
-      findings: [
-        error instanceof Error
-          ? `Zweitprüfung nicht verfügbar: ${error.message}`
-          : "Zweitprüfung nicht verfügbar.",
-      ],
+      model: "deterministic-local-rules",
+      findings: ["Externe Zweitprüfung nicht verfügbar; lokale Regeln bleiben maßgeblich.", ...routed.failures].slice(0, 4),
     };
   }
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(routed.text);
+  } catch {
+    return {
+      decision: "REVIEW",
+      mode: "REVIEW_REQUIRED",
+      model: routed.model,
+      findings: ["Externe Zweitprüfung lieferte kein gültiges JSON; manuelle Prüfung erforderlich."],
+    };
+  }
+  const parsed = ModelReview.safeParse(parsedJson);
+  if (!parsed.success) {
+    return {
+      decision: "REVIEW",
+      mode: "REVIEW_REQUIRED",
+      model: routed.model,
+      findings: ["Externe Zweitprüfung lieferte ein unbekanntes Antwortformat; manuelle Prüfung erforderlich."],
+    };
+  }
+  return { ...parsed.data, mode: "CROSS_MODEL", model: routed.model };
 }
 
 export async function runMetaSupervisorAudit(input: {
@@ -122,17 +101,24 @@ export async function runMetaSupervisorAudit(input: {
   const selection = selectOptimalFreeModel(input.task, input.primaryModel);
   const local = localFindings(input.subject, input.summary);
   const reviewed =
-    selection.provider === "openrouter"
+    local.length > 0
+      ? {
+          decision: "BLOCK" as const,
+          mode: "LOCAL_RULES" as const,
+          model: "local-rules",
+          findings: local,
+        }
+      : selection.provider === "cloud"
       ? await requestFreeReview(selection, input.subject.slice(0, 180), input.summary.slice(0, 700))
       : {
           decision: "PASS" as const,
           mode: "LOCAL_RULES" as const,
-          model: "local-rules",
-          findings: ["Kein unabhängiges kostenloses Modell verfügbar; nur lokale Regeln ausgeführt."],
+          model: "deterministic-local-rules",
+          findings: ["Cloud-Anfragen sind standardmäßig deaktiviert; nur deterministische lokale Regeln ausgeführt."],
         };
   const result =
     local.length > 0
-      ? { ...reviewed, decision: "BLOCK" as const, findings: [...local, ...reviewed.findings].slice(0, 4) }
+      ? { ...reviewed, decision: "BLOCK" as const, findings: local.slice(0, 4) }
       : reviewed;
 
   await db.autopilotLog.create({

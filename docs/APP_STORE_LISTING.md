@@ -27,7 +27,7 @@ Die App enthält aktuell 20 Backend-Handler unter einer gebündelten Sidekick-Di
 2. Inhaberregeln und Dry-Run als getrennte Schutzmechanismen.
 3. Ein-Klick-Pause, die die KI-Aktionen dieses Shops stoppt.
 4. Freigabe-Warteschlange für vorgemerkte Aktionen.
-5. Mitarbeiter- und Abteilungsübersicht für 220 Stammagenten in 26 Abteilungen.
+5. Rollenprofil- und Abteilungsübersicht für 232 Einträge in 26 Abteilungen; die Profile #221–#232 haben noch keine eigene ausführbare Fachlogik.
 6. Fakten- und Regelprüfungen mit protokollierten Ergebnissen.
 7. Interner Aktionsverlauf mit Undo nur für ausdrücklich unterstützte Protokollaktionen.
 8. Mobiler, geschützter Monitor für Status und Freigaben.
@@ -94,7 +94,7 @@ The app currently contains 20 backend handlers behind a grouped Sidekick dispatc
 2. Merchant rules and dry-run as separate safeguards.
 3. One-click pause for this store's AI actions.
 4. Approval queue for actions awaiting review.
-5. Agent and department overview for 220 built-in agents across 26 departments.
+5. Role-profile and department overview for 232 entries across 26 departments; profiles #221–#232 do not yet have domain-specific executable logic.
 6. Fact and rule checks with recorded outcomes.
 7. Action history with undo only for explicitly supported log actions.
 8. Protected mobile monitor for status and approvals.

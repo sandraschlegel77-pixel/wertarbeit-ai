@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import type { AgentDef, EarningsSummary } from "../../services/agent-types";
+import type { AgentDef, AgentPerformanceSnapshot, EarningsSummary } from "../../services/agent-types";
 import { DEPARTMENTS } from "../../services/agent-roster";
 import { AgentCard } from "./AgentCard";
 import { C, btn, card, grid, input } from "./theme";
@@ -9,6 +9,7 @@ const PAGE = 24;
 interface Props {
   roster: AgentDef[];
   earnings: EarningsSummary;
+  performance: AgentPerformanceSnapshot;
   audits: Record<string, string>;
   dept: number | "all";
   onDept: (d: number | "all") => void;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 /** Gefilterte, paginierte Mitarbeiter-Liste (Abteilung + Suchfeld). */
-export function AgentList({ roster, earnings, audits, dept, onDept, fixed, title }: Props) {
+export function AgentList({ roster, earnings, performance, audits, dept, onDept, fixed, title }: Props) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const dq = useDeferredValue(q);
@@ -31,6 +32,7 @@ export function AgentList({ roster, earnings, audits, dept, onDept, fixed, title
       return (
         a.name.toLowerCase().includes(needle) ||
         a.mission.toLowerCase().includes(needle) ||
+        a.specialistCluster?.toLowerCase().includes(needle) ||
         `#${a.number}` === needle ||
         String(a.number) === needle
       );
@@ -73,6 +75,9 @@ export function AgentList({ roster, earnings, audits, dept, onDept, fixed, title
         />
         <span style={{ color: C.muted, fontSize: 12 }}>{list.length} Treffer</span>
       </div>
+      {performance.status === "unavailable" && (
+        <div role="status" style={{ ...card, color: C.amber, fontSize: 12 }}>{performance.message}</div>
+      )}
 
       <div style={grid(250)}>
         {slice.map((a) => (
@@ -82,6 +87,7 @@ export function AgentList({ roster, earnings, audits, dept, onDept, fixed, title
             earn={earnings.perAgent[a.key]}
             team={earnings.team[a.key]}
             audit={audits[a.key]}
+            performance={performance.byAgent[a.key]}
           />
         ))}
       </div>

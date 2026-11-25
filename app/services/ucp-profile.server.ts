@@ -18,7 +18,7 @@ export interface CapabilityDef {
 export const CAPABILITIES: CapabilityDef[] = [
   { key: "catalog", title: "Produktsuche", description: "Lesende Suche im Sortiment (Titel, Preis, Verfügbarkeit, Unikat-Hinweis).", path: "/api/ucp/products" },
   { key: "advice", title: "Manufaktur-Beratung", description: "Antworten zu Gravur, Pflege, Zertifikat und Größen (DE/EN).", path: "/api/ucp/advice" },
-  { key: "gra_verification", title: "GRA-Echtheitsprüfung", description: "Prüft, ob eine GRA-Zertifikatsnummer existiert (nur gültig ja/nein + Steindaten).", path: "/api/ucp/gra" },
+  { key: "gra_verification", title: "Lokaler Zertifikatsdatensatz", description: "Prüft nur den Eintrag im Shop; keine externe GRA-Echtheits- oder NFC-Validierung.", path: "/api/ucp/gra" },
   { key: "ring_size", title: "Ringgrößen-Hilfe", description: "Rechnet Innenumfang, Durchmesser und US-Größe in DE/US/UK um (ISO 8653).", path: "/api/ucp/ring-size" },
 ];
 

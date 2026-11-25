@@ -2,8 +2,10 @@ import { useFetcher } from "react-router";
 import { InfoPop } from "./InfoPop";
 import { C, badge, btn, btnGold, card, eur, grid } from "./theme";
 import type { HarmonyScore, InventoryValue, EarningsRow } from "../../services/agent-types";
+import { OWNER_MODULE_IDS } from "../../services/module-access-core";
 
 interface Props {
+  shop: string;
   isOwner: boolean;
   dryRun: boolean;
   paused: boolean;
@@ -11,11 +13,12 @@ interface Props {
   army: EarningsRow;
   extraAgents: number;
   inventory: InventoryValue;
+  activeModules: string[];
   apiKeysMissing: boolean;
   inventorySource: "LIVE" | "DEMO";
   snapshotAt: string;
   databaseHealth: { status: "online" | "unavailable"; latencyMs: number | null };
-  serverUptimeSeconds: number;
+  serverUptimeSeconds: number | null;
   rules: { key: string; value: unknown }[];
   onQr: () => void;
   onCoinRain: () => void;
@@ -31,6 +34,27 @@ const kpi = (label: string, value: string, color: string = C.champagne) => (
   </div>
 );
 
+export function OwnerRulesPanel({ rules }: { rules: { key: string; value: unknown }[] }) {
+  const fetcher = useFetcher();
+
+  return (
+    <section aria-label="Inhaber-Regeln" style={{ ...card, padding: 12, display: "grid", gap: 8 }}>
+      <strong style={{ color: C.champagne }}>OwnerRule-Manager · {rules.length} Regeln · höchste Priorität</strong>
+      <fetcher.Form method="post" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <input type="hidden" name="type" value="add_rule" />
+        <input name="key" placeholder="Schlüssel, z. B. veto:A44" required style={{ background: C.slate, color: C.text, border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 10px" }} />
+        <input name="value" placeholder="Wert" required style={{ background: C.slate, color: C.text, border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 10px" }} />
+        <button type="submit" style={btn}>Regel speichern</button>
+      </fetcher.Form>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: C.muted, maxHeight: 160, overflowY: "auto" }}>
+        {rules.map((r) => (
+          <li key={r.key}><strong style={{ color: C.text }}>{r.key}</strong>: {String(r.value)}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** Kopfleiste: Logo, Badges, Harmonie, Verdienst, Belegschaft, DRY_RUN, OwnerRule, QR. */
 function formatUptime(seconds: number) {
   const hours = Math.floor(seconds / 3600);
@@ -39,6 +63,7 @@ function formatUptime(seconds: number) {
 }
 
 export function HeaderBar({
+  shop,
   isOwner,
   dryRun,
   paused,
@@ -46,6 +71,7 @@ export function HeaderBar({
   army,
   extraAgents,
   inventory,
+  activeModules,
   apiKeysMissing,
   inventorySource,
   snapshotAt,
@@ -58,7 +84,6 @@ export function HeaderBar({
   onToggleCoinSound,
   soundPreferenceMessage,
 }: Props) {
-  const fetcher = useFetcher();
   const dryFetcher = useFetcher();
   const pauseFetcher = useFetcher();
   const dry = dryFetcher.formData ? dryFetcher.formData.get("value") !== "false" : dryRun;
@@ -77,26 +102,30 @@ export function HeaderBar({
           </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <span style={badge(C.emerald)}>KI-Steuerung mit Inhaber-Veto</span>
-          {isOwner && <span style={badge(C.gold)}>OWNER UNLIMITED (0,00 €)</span>}
+          <span style={badge(C.emerald)}>{isOwner ? "KI-Steuerung mit Inhaber-Veto" : "Gebuchte Fachbereiche"}</span>
+          {isOwner
+            ? <span style={badge(C.gold)}>👑 INHABER-MODUS (OWNER UNLIMITED – 0,00 €) · {shop}</span>
+            : <span style={badge(C.muted)}>session.shop · {shop}</span>}
           {inventorySource === "DEMO" && <span style={badge(C.amber)}>Demo-Bestand – keine Live-Inventardaten</span>}
-          {apiKeysMissing && <span style={badge(C.amber)}>Keine Cloud-KI-Schlüssel · lokale Regeln aktiv</span>}
-          <span style={badge(C.emerald)}>Harmonie {harmony.harmony.toFixed(1).replace(".", ",")} %</span>
-          <span style={badge(C.muted)}>Interner Speed-Score {harmony.speed.toFixed(0)} %</span>
+          {isOwner && apiKeysMissing && <span style={badge(C.amber)}>Keine Cloud-KI-Schlüssel · lokale Regeln aktiv</span>}
+          {isOwner && <span style={badge(C.emerald)}>Harmonie {harmony.harmony.toFixed(1).replace(".", ",")} %</span>}
+          {isOwner && <span style={badge(C.muted)}>Interner Speed-Score {harmony.speed.toFixed(0)} %</span>}
           <button type="button" style={btn} onClick={onQr}>QR-Code · Handy-Monitor</button>
           <a href="/mobile-monitor" style={{ ...btn, textDecoration: "none" }}>/mobile-monitor</a>
         </div>
       </div>
 
-      <section aria-label="Interne Agenten-Zuordnung" style={{ display: "grid", gap: 8 }}>
-        <strong style={{ color: C.champagne }}>Interne Agenten-Zuordnung · kein Shop-Guthaben und keine Auszahlung</strong>
-        <div style={grid(170)}>
-          {kpi("Echt zugeordnet (Monat)", eur(army.monthReal), C.emerald)}
-          {kpi("Echt zugeordnet (Gesamt)", eur(army.totalReal), C.emerald)}
-          {kpi("Potenzial (Monat, Dry-Run)", eur(army.monthPotential), C.amber)}
-          {kpi("Potenzial (Gesamt, Dry-Run)", eur(army.totalPotential), C.amber)}
-        </div>
-      </section>
+      {isOwner && (
+        <section aria-label="Interne Agenten-Zuordnung" style={{ display: "grid", gap: 8 }}>
+          <strong style={{ color: C.champagne }}>Interne Agenten-Zuordnung · kein Shop-Guthaben und keine Auszahlung</strong>
+          <div style={grid(170)}>
+            {kpi("Echt zugeordnet (Monat)", eur(army.monthReal), C.emerald)}
+            {kpi("Echt zugeordnet (Gesamt)", eur(army.totalReal), C.emerald)}
+            {kpi("Potenzial (Monat, Dry-Run)", eur(army.monthPotential), C.amber)}
+            {kpi("Potenzial (Gesamt, Dry-Run)", eur(army.totalPotential), C.amber)}
+          </div>
+        </section>
+      )}
 
       <section aria-label="Shop-Bestand und Warenwert" style={{ display: "grid", gap: 8 }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
@@ -106,7 +135,13 @@ export function HeaderBar({
           </span>
         </div>
         <div style={grid(170)}>
-          {kpi("Belegschaft", `220 + ${extraAgents} KI-Mitarbeiter`)}
+          {isOwner ? (
+            <>
+              {kpi("Freigeschaltete Module", `${activeModules.length}/${OWNER_MODULE_IDS.length}`)}
+              {kpi("Rollenprofile", `332 + ${extraAgents} dynamische`)}
+            </>
+          ) : kpi("Gebuchte Module", String(activeModules.length))}
+          {isOwner && <small style={{ color: C.muted, gridColumn: "1 / -1" }}>Stammprofile #1–#232 und #301–#400; die Agenten-Fabrik beginnt ab #401.</small>}
           {kpi("Bestandsmenge", `${inventory.items} Einheiten`)}
           {kpi("Warenwert (brutto)", eur(inventory.grossSalesValue))}
           {kpi("Verkaufswert (netto)", eur(inventory.netSalesValue))}
@@ -119,23 +154,23 @@ export function HeaderBar({
         </small>
       </section>
 
-      <section aria-label="Betriebsgesundheit" style={{ display: "grid", gap: 8 }}>
+      {isOwner && <section aria-label="Betriebsgesundheit" style={{ display: "grid", gap: 8 }}>
         <strong style={{ color: C.champagne }}>Betriebsgesundheit</strong>
         <div style={grid(170)}>
           {kpi("Datenbank-Ping", databaseHealth.latencyMs === null ? "Nicht verfügbar" : `${databaseHealth.latencyMs} ms`,
             databaseHealth.status === "online" ? C.emerald : C.red)}
           {kpi("Datenbank-Status", databaseHealth.status === "online" ? "Antwortet" : "Nicht erreichbar",
             databaseHealth.status === "online" ? C.emerald : C.red)}
-          {kpi("Server-Prozess läuft seit", formatUptime(serverUptimeSeconds))}
+          {kpi("Server-Prozess läuft seit", serverUptimeSeconds === null ? "Nicht verfügbar" : formatUptime(serverUptimeSeconds))}
           {kpi("Harmonie-Score (kein Uptime-Wert)", `${Math.round(harmony.harmony)} %`)}
         </div>
-      </section>
+      </section>}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+      {isOwner && <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
         <dryFetcher.Form method="post" style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input type="hidden" name="type" value="set_dry_run" />
           <input type="hidden" name="value" value={dry ? "false" : "true"} />
-          <button type="submit" style={{ ...btn, borderColor: dry ? C.amber : C.emerald }}>
+          <button type="submit" style={{ ...btn, borderColor: dry ? C.amber : C.emerald }} disabled={dryFetcher.state !== "idle"}>
             DRY_RUN_MODE: {dry ? "AN (geschützt)" : "AUS (LIVE)"}
           </button>
           <InfoPop title="DRY_RUN_MODE">
@@ -146,7 +181,7 @@ export function HeaderBar({
         <pauseFetcher.Form method="post">
           <input type="hidden" name="type" value="set_global_pause" />
           <input type="hidden" name="value" value={isPaused ? "false" : "true"} />
-          <button type="submit" style={{ ...btn, borderColor: isPaused ? C.emerald : "#EF4444", color: isPaused ? C.emerald : "#FCA5A5" }}>
+          <button type="submit" style={{ ...btn, borderColor: isPaused ? C.emerald : "#EF4444", color: isPaused ? C.emerald : "#FCA5A5" }} disabled={pauseFetcher.state !== "idle"}>
             {isPaused ? "KI-Aktionen dieses Shops fortsetzen" : "ALLE KI-AKTIONEN DIESES SHOPS SOFORT PAUSIEREN"}
           </button>
         </pauseFetcher.Form>
@@ -157,22 +192,9 @@ export function HeaderBar({
         </button>
         <span style={{ color: C.muted, fontSize: 11 }}>Dekoration only – keine echten Einnahmen oder Coins</span>
         {soundPreferenceMessage && <span role="status" style={{ color: C.amber, fontSize: 11 }}>{soundPreferenceMessage}</span>}
-      </div>
+      </div>}
 
-      <section aria-label="Inhaber-Regeln" style={{ ...card, padding: 12, display: "grid", gap: 8 }}>
-        <strong style={{ color: C.champagne }}>OwnerRule-Manager · {rules.length} Regeln · höchste Priorität</strong>
-        <fetcher.Form method="post" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <input type="hidden" name="type" value="add_rule" />
-            <input name="key" placeholder="Schlüssel, z. B. veto:A44" required style={{ background: C.slate, color: C.text, border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 10px" }} />
-            <input name="value" placeholder="Wert" required style={{ background: C.slate, color: C.text, border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 10px" }} />
-            <button type="submit" style={btn}>Regel speichern</button>
-        </fetcher.Form>
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: C.muted, maxHeight: 160, overflowY: "auto" }}>
-            {rules.map((r) => (
-              <li key={r.key}><strong style={{ color: C.text }}>{r.key}</strong>: {String(r.value)}</li>
-            ))}
-        </ul>
-      </section>
+      {isOwner && <OwnerRulesPanel rules={rules} />}
     </div>
   );
 }

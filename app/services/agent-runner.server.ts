@@ -7,6 +7,8 @@ import { acquireLock, recordTiming, releaseLock } from "./orchestration-harmony.
 import { enqueueApproval, runTripleAudit } from "./triple-audit-gate.server";
 import { recordPotentialOncePerDay, recordRevenue } from "./silent-revenue.server";
 import { runMetaSupervisorAudit } from "./meta-supervisor.server";
+import { recordAgentConnectionTrace } from "./live-connection.server";
+import { canAccessAgentForShop } from "./access-control.server";
 
 export interface RunAgentResult {
   ok: boolean;
@@ -40,11 +42,28 @@ export async function runAgent(
     return done({ ok: false, agent: `A${number}`, mode: "BLOCKED", message: "Unbekannter Mitarbeiter." });
   }
 
+  if (!await canAccessAgentForShop(shop, agent.key)) {
+    return done({
+      ok: false,
+      agent: agent.key,
+      mode: "BLOCKED",
+      message: "Dieser Mitarbeiter gehört nicht zu einem aktiven, gebuchten Fachbereich dieses Shops.",
+    });
+  }
+
   if (await isShopPaused(shop)) {
     return done({ ok: false, agent: agent.key, mode: "BLOCKED", message: "Globale KI-Pause ist aktiv." });
   }
   if (agent.dynamic && agent.status !== "ACTIVE") {
     return done({ ok: false, agent: agent.key, mode: "BLOCKED", message: "Dynamischer Agent ist nicht aktiviert." });
+  }
+  if (agent.advisoryOnly) {
+    return done({
+      ok: false,
+      agent: agent.key,
+      mode: "BLOCKED",
+      message: "Dieses Rollenprofil hat noch keine eigene Fachlogik. Es wurde nichts ausgeführt.",
+    });
   }
 
   const veto = await ownerVeto(shop, agent);
@@ -173,6 +192,21 @@ export async function runAgent(
       session: { shop },
       body: opts.body ?? {},
     });
+    let traceWarning = "";
+    try {
+      await recordAgentConnectionTrace({
+        shop,
+        agentKey: agent.key,
+        channelKey: `${agent.tool.category}/${agent.tool.action}`,
+        outcome: res.ok ? "SUCCESS" : "FAILED",
+        trigger: opts.origin ?? "manual",
+        durationMs: Date.now() - t0,
+      });
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : "UnknownError";
+      console.error(`[live-trace] Agentenaufruf wurde ausgeführt, aber der Trace konnte nicht gespeichert werden (${errorName}).`);
+      traceWarning = " Die Verbindung konnte nicht im Event-Bus protokolliert werden.";
+    }
     if (agent.dynamic && res.ok && !dry) {
       await db.autopilotLog.create({
         data: {
@@ -191,7 +225,7 @@ export async function runAgent(
       ok: res.ok,
       agent: agent.key,
       mode: dry ? "DRY_RUN" : "LIVE",
-      message: res.ok ? "Ausgeführt." : res.warning ?? "Fehler.",
+      message: `${res.ok ? "Ausgeführt." : res.warning ?? "Fehler."}${traceWarning}`,
       auditStatus,
       metaAuditStatus,
     });

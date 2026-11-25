@@ -13,6 +13,8 @@ SHOPIFY_API_SECRET="..."
 SHOPIFY_APP_URL="https://IHRE-DOMAIN"
 SCOPES="read_products,write_products,..."
 BILLING_LIVE="false"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/atelierpilot?schema=public"
+BRAND_SETTINGS_ENCRYPTION_KEY="64 zufaellige Hex-Zeichen, geheim und dauerhaft sichern"
 ```
 
 - `OWNER_SHOP_DOMAIN`: dieser Shop läuft dauerhaft kostenlos als **OWNER UNLIMITED (0,00 €)**.
@@ -23,12 +25,13 @@ BILLING_LIVE="false"
 ```
 npx prisma validate
 npx prisma generate
+# Nur nach Prüfung des Ziels und gesichertem Backup: db push kann Datenbankschema ändern.
 npx prisma db push
 npm run typecheck
 npm run appstore:check
 npm run build
 ```
-Falls `prisma generate` mit `EPERM` scheitert, laufen noch Node-Prozesse: `taskkill /F /IM node.exe /T` und wiederholen.
+Falls `prisma generate` mit `EPERM` scheitert, können laufende Node-Prozesse die Engine-Datei verwenden. Nicht alle Node-Prozesse pauschal beenden; erst konkrete Prozesse identifizieren und nur nach Freigabe gezielt schließen.
 
 ## 3. Deploy
 ```
@@ -52,7 +55,7 @@ STOREFRONT_URL="https://deine-shop-domain.de"
 - **UWG-Abmeldelink:** `buildUnsubscribeUrl()` in `app/services/unsubscribe.server.ts` für Mails/Rechnungen.
 
 ## Ehrlicher Stand der Funktionen
-- **Im Repository vorhanden:** Prisma-Modelle, 220 Stamm-KI-Mitarbeiter (#1–#220) in 26 Abteilungen, separate Meta-Aufsicht #000 und dynamische Agenten ab #221, 3×-Prüfgremien, Freigabe-Warteschlange, Evolution mit Rollback, Verdienst-Journal, Dashboard mit Platine und Baukasten-Rechner, DSGVO-Webhooks (`/webhooks`, HMAC über `authenticate.webhook`), Billing über `appSubscriptionCreate` und Datenschutzseite `/privacy`. Die neuen Spezialisten sind im Roster sichtbar; ihre Rollenbeschreibung allein bedeutet keine angebundene externe Datenquelle oder fertige automatische Arbeitsergebnisse.
+- **Im Repository vorhanden:** Prisma-Modelle, 232 Kernprofile (#1–#232) plus 100 Apex-Profile (#301–#400) in 26 Abteilungen, Owner-only Meta-Aufsicht #000 und neue dynamische Agenten ab #401, 3×-Prüfgremien, Ausnahme-Freigabewarteschlange, Evolution mit Rollback, Verdienst-Journal, Dashboard mit sieben URL-Ansichten, interaktive Platine und Baukasten-Rechner, DSGVO-Webhooks (`/webhooks`, HMAC über `authenticate.webhook`), Billing über `appSubscriptionCreate` und Datenschutzseite `/privacy`. Die Fachprofile verwenden vorhandene Sidekick-Tools; neue Marktplatz-Adapter werden dadurch nicht automatisch bereitgestellt. Vor dem Produktivstart muss `npm run migrate:agent-numbers` eventuell vorhandene dynamische Agenten-IDs bis #400 auf #401+ verschieben; die Migration wurde nicht ausgeführt.
 - **Zentraler Fertig-Tisch:** #220 aggregiert die tatsächlich vorhandene Freigabe-Warteschlange im Dashboard und `/mobile-monitor`. Eine Freigabe führt nur bei deaktiviertem `DRY_RUN_MODE`, ohne globale Pause und ohne passende aktive `OwnerRule` eine hinterlegte Sidekick-Aktion aus.
 - **Verdienst-Anzeige:** „Echt“ erscheint erst, wenn über `bookRealRevenue` echte Bestelldaten verbucht werden. Bis dahin zeigt die App nur „Potenzial (Dry-Run)“ und rechnet nichts schön.
 - **Neu und lauffähig (lokal getestet):** `/mobile-monitor` (PWA mit Münzregen, Ton-Schalter, Sprachbefehl, Freigaben), `/api/cron`, `/api/unsubscribe`, `/gift/<token>`, `/returns-portal`, `/.well-known/ucp`, `/shop.md`.
@@ -78,16 +81,16 @@ Läuft über `/api/cron` (alle 5 Min.). Reihenfolge je Mail: Abmelde-Blacklist �
 
 **Secrets:** `node scripts/ensure-env.mjs` ergänzt fehlende oder zu kurze `CRON_SECRET`/`MOBILE_MONITOR_TOKEN` (32 Zeichen) und schreibt `.env.example`. Werte werden nie angezeigt. Das ist für diesen Rechner bereits geschehen.
 
-**Cloud (Render, Port 3000):** `Dockerfile` (Port 3000, Health-Check `/privacy`), `npm run start:prod` und `render.yaml` sind bereit. Geheimnisse tragen Sie im Render-Dashboard ein. **Kostenhinweis:** Der Gratis-Plan hat keine dauerhafte Festplatte. Mit SQLite gehen Daten bei jedem Neustart verloren. Für echten 0-€-Dauerbetrieb brauchen Sie eine Gratis-PostgreSQL (z. B. Neon) – das Prisma-Schema ist dafür noch **nicht** umgestellt.
+**Cloud (Render, Port 3000):** `Dockerfile` (Port 3000, Health-Check `/privacy`) und `render.yaml` sind vorhanden. Das Prisma-Schema verwendet PostgreSQL über `DATABASE_URL`; in der lokalen `.env` fehlt diese Variable noch. Es wurde keine Neon-Datenbank bereitgestellt, kein SQLite-Bestand migriert und kein `prisma db push` oder Cloud-Deploy ausgeführt. Render Free hat keine dauerhafte Festplatte; produktive Daten brauchen eine erreichbare externe PostgreSQL-Instanz und einen geprüften Backup-/Migrations-/Restore-Plan. Gratis-Tarife garantieren weder 0 € Folgekosten noch 24/7-Verfügbarkeit.
 
 **Hinweis Windows:** Steht in Ihrer Shell `NODE_ENV=production`, installiert `npm install` keine Dev-Pakete und `typecheck` scheitert. Vorher `$env:NODE_ENV=$null` setzen.
 - **Sidekick-Limit:** aktuell genau 20 von 20 Tools.
 
-## 7. Gesicherter Arbeitsstand – 23.11.2026
+## 7. Gesicherter Arbeitsstand – 24.11.2026
 
 ### Dashboard-Veredelung (letzter Arbeitsgang)
 
-- Tabs werden über `?tab=overview|agents|earners|audits|factory|vault|platforms|rewards` gemerkt; ein reiner Tabwechsel lädt die Shop-Daten nicht erneut.
+- Sieben Unterseiten werden über `?view=...` gemerkt; ältere `?tab=...`-Links bleiben kompatibel. Ein reiner Ansichtswechsel lädt die Shopdaten nicht erneut.
 - Dashboard-Kopf und Kommandoübersicht trennen interne Agenten-Zuordnungen (Echt/Potenzial) vom Shop-Bestand. Demo-Bestand, UTC-Datenzeitpunkt, DB-`SELECT 1`-Ping und Node-Prozesslaufzeit sind sichtbar. Warenwert-/Gewinnwerte bleiben ausdrücklich Schätzungen auf Basis einer 19%-MwSt.-Annahme.
 - Münzregen und Klang sind dekorativ, keine echten Einnahmen. Die Einstellung wird lokal gespeichert; bei gesperrtem Browser-Speicher erscheint ein Hinweis.
 - Die Platine enthält den fünften Vorstandssitz #171, Info-Popovers, Abteilungs-Modulauswahl und Zoom-/Kompaktansicht. Der AtelierBot reserviert auf breiten Ansichten einen Seitenbereich; auf schmalen Ansichten wird er in den Seitenfluss gesetzt, statt Inhalte zu verdecken.
@@ -95,18 +98,33 @@ Läuft über `/api/cron` (alle 5 Min.). Reihenfolge je Mail: Abmelde-Blacklist �
 - Plattform-Cockpit: Portalverweise, DE/EN-Entwickleranfrage-Entwürfe (#202 laut tatsächlichem Roster; nicht #187) und ehrliche Adapter-Status. Nicht angebundene Dienste werden nicht als verbunden oder getestet ausgegeben.
 - Werkstatt-Entwürfe können in einer shopbezogenen lokalen Browserwarteschlange vorgemerkt und manuell ins vorhandene Formular geladen werden. Die Daten sind unverschlüsselt, gerätegebunden und werden nicht automatisch synchronisiert; nach Übertragung löschen.
 - Eigene Fachgebiets-Agenten werden zuerst als Kandidaten angelegt, nicht automatisch gestartet. Das Onboarding zeigt nur belegte Live-Bestandsdaten und weist Demo-Werte separat aus.
-- Individuelle PDF-/DATEV-/Chargeback-/DPP-Downloads und der Brand-Customizer sind weiterhin offen: `VaultDocument`-/`ShopSettings`-Modelle und notwendige Quelldaten fehlen. Vorhandener xTool-Tagespaket-ZIP-Endpunkt bleibt nutzbar. Keine Platzhalter werden als echte Belege dargestellt.
+- Der Tresor erzeugt shop-authentifizierte Downloads aus vorhandenen Daten: Rechnungsdatenblatt, Steuerberater-Prüf-ZIP, DIN-A6-Karte, DPP-Datensatz-PDF, Chargeback-Checkliste, B2B-Briefentwurf und gespeicherte xTool-SVGs. Die Dokumente sind ausdrücklich nicht automatisch ZUGFeRD/PDF-A-konform, kein offizielles GRA-Zertifikat und keine Chargeback-Beweise.
+- `ShopSettings` speichert Brand-Einstellungen shopbezogen. Das Logo ist PNG/JPEG bis 350 KB; Bankdaten liegen AES-256-GCM-verschlüsselt vor. Für Bankdaten muss `BRAND_SETTINGS_ENCRYPTION_KEY` als 32-Byte-Schlüssel gesetzt und sicher gesichert werden. Ein Schlüsselverlust macht vorhandene Bankdaten unlesbar.
+- Agenten-Noten, Tendenz, XP, Rang und Akademie-Status sind eine transparente interne Heuristik aus Freigabe-Ergebnissen, Evolutions-Scores und echten Verdienstbuchungen. Ohne Evidenz wird keine Note vergeben. Approval-Trends verwenden mangels Auflösungszeitpunkt das Erstellungsdatum; daraus folgt keine Fach- oder Personalzertifizierung.
+- `JudicialDecisionLedger` protokolliert ausschließlich manuell eingetragene interne Review-Schritte #221–#225 in Reihenfolge und verkettet sie per SHA-256. Die Hash-Kette prüft vorhandene Einträge, ist aber weder extern verankert noch gegen Löschen der letzten Einträge geschützt. Es gibt keine automatische Rechtsentscheidung oder Rechtsberatung.
+- Die 60-Sekunden-Show zeigt einen gespeicherten Daten-Snapshot, keinen Live-Stream. Audio wird lokal über die Browser-Sprachausgabe erzeugt.
+- #221–#232 bleiben serverseitig gesperrte Rollenprofile ohne eigene autonome Fachlogik. Das Ledger ist ein manuelles Prüfprotokoll; automatische Beförderungen und Prompt-Rollbacks nach Noten sind nicht implementiert.
 
 ### Validierung dieses Stands
 
+- `npx prisma generate` – erfolgreich (Prisma 6.19.3, Binary-Engine).
 - `npm run typecheck` – erfolgreich.
+- `node --test scripts/agent-performance.test.mjs scripts/agent-roster.test.mjs` – 3 Tests erfolgreich.
+- Gezieltes ESLint für die geänderten Dashboard-/Service-Dateien – erfolgreich.
 - `npm run build` – erfolgreich; nur React-Router-Zukunftshinweise.
 - `npm run appstore:check` – erfolgreich, 34/34 statische Kriterien; Sidekick 20/20.
-- Gezieltes ESLint für die geänderten TypeScript-/React-Dateien – erfolgreich.
-- Kein Server wurde gestartet; keine Shopify-Live-Aktion oder Cloud-Migration ausgeführt.
+- `git diff --check` – erfolgreich. Kein Serverstart, kein `prisma db push`, keine Shopify-Live-Aktion und keine Cloud-Migration.
+
+## 8. Neue Metriken, internes Ledger und Tresor
+
+- Die Note ergibt sich aus dem gleich gewichteten Mittel der verfügbaren Dimensionen: Erfolgsquote entschiedener Freigaben, mittlerer `AgentSkillEvolution.successScore` und positives/negatives Netto aus echten `AgentRevenueEntry`-Buchungen. Der Score 0–1 wird auf Note 6,0–1,0 abgebildet. Dry-Run-Buchungen zählen nicht als echte Einnahmen.
+- Trend: Vergleich des zusammengesetzten Scores der letzten 30 Tage mit den vorherigen 30 Tagen; Änderung ab 0,05 ergibt ▲/▼, dazwischen ►. Für einen Zeitraum ohne Messwerte gibt es keinen Trend.
+- XP: bestätigte Freigabe +25, Ablehnung +5, Evolution +10, echte Verdienstbuchung +10. Rangschwellen: 0/100/250/500/1.000/2.000 XP. Interner Akademie-Status: „zertifiziert“ bei mindestens 10 Ereignissen und Note ≤2,0; „Nachschulung“ ab 5 Ereignissen und Note ≥3,5; sonst Lernphase.
+- Das Schema enthält `JudicialDecisionLedger` und `ShopSettings`. Die neuen Tabellen sind noch nicht in einer Datenbank angelegt, weil lokal keine `DATABASE_URL` konfiguriert ist. `npx prisma db push` erst gegen eine bestätigte, gesicherte PostgreSQL-Instanz ausführen.
+- Die ZIP-Ausgabe ist ein Prüfpaket mit maximal 500 aktuellen Metadatensätzen je Liste und unverifizierten gespeicherten XML-/DATEV-Feldern, kein fertiger DATEV-Buchungsstapel. Rechnungs- und DPP-PDFs sind Datensatzentwürfe; fehlende Pflichtdaten werden nicht ergänzt oder erfunden.
 
 ### Wichtiger Sicherungs- und Git-Hinweis
 
-- Das lokale `main` hat noch keinen Commit; der Arbeitsbaum zeigt Projektdateien als untracked. Daher sind die Änderungen **noch nicht durch Git versioniert oder gepusht**. Es wurde bewusst nichts pauschal gestaged oder committet: vor einem ersten Commit müssen untracked Konfigurationen und Dateien geprüft werden.
+- Der lokale Commit `f3e9893` enthält die PostgreSQL-Provider-Umstellung und Docker-Vorbereitung. Er wurde nicht gepusht. Die jetzt beschriebenen Dashboard-/Roster-Änderungen sind noch nicht committet.
 - `.env` ist lokal vorhanden und wird laut `.gitignore` ausgeschlossen. Sie niemals in ein Archiv, einen Commit oder eine Nachricht aufnehmen. `.env.example` ist als Vorlage ausgenommen. `.mcp.json` ist untracked und wurde nicht geprüft; vor einem Commit auf mögliche Zugangsdaten prüfen.
 - Für eine dauerhafte externe Sicherung zuerst eine geprüfte private Git-Remote/Backup-Ziel festlegen und nur explizit geprüfte Dateien übernehmen. Keine Zugangsdaten in `FERTIG_LESEN.md` oder andere Dokumentation kopieren.

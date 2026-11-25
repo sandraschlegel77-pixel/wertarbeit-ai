@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "react-router";
-import db from "../db.server";
 import { loadShopProfile } from "../services/shop-profile.server";
 import { fromCircumference, fromDiameter, fromUs } from "../services/ring-size";
 import { ownerShopDomain } from "../services/ai-agents.server";
+import { verifyLocalGraRecord } from "../services/manufaktur-apex.server";
 
 /**
  * Öffentliche, rein lesende Manufaktur-Schnittstelle für KI-Agenten (siehe /.well-known/ucp).
@@ -34,7 +34,7 @@ const json = (body: unknown, status = 200) =>
 const ADVICE: { match: RegExp; de: string; en: string }[] = [
   { match: /gravur|engrav/i, de: "Gravuren fertigen wir per Laser nach Ihrem Text. Personalisierte Stücke sind vom Widerruf ausgeschlossen (§ 312g Abs. 2 Nr. 1 BGB); Mängelrechte bleiben unberührt.", en: "We laser-engrave your text. Personalised pieces are excluded from withdrawal (§ 312g (2) no. 1 BGB); statutory warranty rights remain." },
   { match: /pflege|care|reinig/i, de: "Silber und Moissanit mit weichem Tuch und mildem Seifenwasser reinigen; getrennt und trocken lagern; Parfüm und Chlor meiden.", en: "Clean silver and moissanite with a soft cloth and mild soapy water; store separately and dry; avoid perfume and chlorine." },
-  { match: /zertifikat|gra|echt|certif/i, de: "Zertifizierter Moissanit wird mit GRA-Echtheitszertifikat geliefert; die Nummer lässt sich über diese Schnittstelle prüfen.", en: "Certified moissanite ships with a GRA certificate; the number can be verified through this interface." },
+  { match: /zertifikat|gra|echt|certif/i, de: "Diese Schnittstelle prüft nur, ob ein Zertifikatsdatensatz im Shop gespeichert ist. Sie bestätigt weder die Echtheit bei GRA noch einen NFC-Chip.", en: "This endpoint only checks whether a certificate record exists in the shop. It does not verify GRA authenticity or an NFC chip." },
   { match: /größe|groesse|size|ring/i, de: "Ringgröße = Innenumfang in mm (ISO 8653). Nutzen Sie den Größen-Umrechner; Unikate gibt es in fester Größe oder größenverstellbar.", en: "Ring size = inner circumference in mm (ISO 8653). Use the size converter; unique pieces come in a fixed size or adjustable." },
 ];
 
@@ -66,12 +66,10 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     case "gra": {
       const no = (q.get("no") ?? "").trim().toUpperCase();
       if (!/^GRA-\d{6,}$/.test(no)) return json({ error: "invalid_format", expected: "GRA-123456" }, 400);
-      const c = await db.graCertificate.findFirst({
-        where: { shop: ownerShopDomain(), certificateNo: no },
-        select: { stoneType: true, carat: true },
-      });
-      // Bewusst nur „gültig ja/nein“ + Steindaten – keine Bestell- oder Kundendaten.
-      return c ? json({ valid: true, stoneType: c.stoneType, carat: c.carat }) : json({ valid: false });
+      const result = await verifyLocalGraRecord(ownerShopDomain(), no);
+      return result.localRecordFound
+        ? json({ recordFound: true, authenticityVerified: false, nfcVerified: false, certificate: result.certificate })
+        : json({ recordFound: false, authenticityVerified: false, nfcVerified: false });
     }
     case "advice": {
       const topic = (q.get("topic") ?? "").slice(0, 80);

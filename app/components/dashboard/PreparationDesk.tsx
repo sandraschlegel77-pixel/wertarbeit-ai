@@ -8,6 +8,7 @@ interface Props {
   items: ApprovalDto[];
   pendingCount: number;
   contributingAgents: number;
+  isOwner?: boolean;
   canPrepareListing?: boolean;
   roster?: AgentDef[];
 }
@@ -33,7 +34,7 @@ function CopySummary({ text, label = "Text kopieren" }: { text: string; label?: 
 }
 
 /** #220 presents only real, pending ApprovalQueueItem records; it does not invent drafts. */
-export function PreparationDesk({ items, pendingCount, contributingAgents, canPrepareListing = false, roster = [] }: Props) {
+export function PreparationDesk({ items, pendingCount, contributingAgents, isOwner = false, canPrepareListing = false, roster = [] }: Props) {
   const fetcher = useFetcher<{ ok?: boolean; message?: string }>();
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
@@ -57,7 +58,7 @@ export function PreparationDesk({ items, pendingCount, contributingAgents, canPr
   return (
     <section style={{ ...card, display: "grid", gap: 10 }} aria-label="1-Klick-Fertig-Tisch">
       <div>
-        <strong style={{ color: C.champagne }}>#220 · Heute nur noch anklicken</strong>
+        <strong style={{ color: C.champagne }}>{isOwner ? "#220 · Exception-Only-Fertig-Tisch" : "Ihre Freigabe-Warteschlange"}</strong>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
           {pendingCount} offene Vorbereitung(en) aus {contributingAgents} Mitarbeiter(n). Freigaben bleiben durch Pause,
           DRY_RUN_MODE und aktive OwnerRules geschützt.

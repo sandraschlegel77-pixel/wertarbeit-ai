@@ -1,7 +1,9 @@
 // npm run appstore:check – prüft das Projekt statisch gegen die Shopify-App-Store-Kriterien.
 // Kein Browser, keine Netzwerkzugriffe, 0 € Kosten.
 import fs from "node:fs";
+import { Buffer } from "node:buffer";
 import path from "node:path";
+import process from "node:process";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..");
 const read = (p) => (fs.existsSync(path.join(root, p)) ? fs.readFileSync(path.join(root, p), "utf8") : "");
@@ -63,7 +65,7 @@ const checks = [
   ["Bilingualer App-Store-Listing-Entwurf vorhanden", exists("docs/APP_STORE_LISTING.md") && /## Deutsch/.test(read("docs/APP_STORE_LISTING.md")) && /## English/.test(read("docs/APP_STORE_LISTING.md"))],
   ["Neukunden-Onboarding shopbezogen gespeichert", /complete_onboarding/.test(read("app/services/dashboard-actions.server.ts")) && /onboarding_complete/.test(read("app/services/dashboard-loader.server.ts"))],
   ["Globale KI-Pause serverseitig geprüft", /isShopPaused/.test(read("app/services/agent-runner.server.ts")) && /isShopPaused/.test(read("app/lib/sidekick.server.ts")) && /isShopPaused/.test(read("app/services/mail-transport.server.ts"))],
-  ["Meta-Supervisor nutzt OpenRouter Free-Router oder lokale Regeln", /openrouter\/free/.test(read("app/services/meta-supervisor.server.ts")) && /LOCAL_RULES/.test(read("app/services/meta-supervisor.server.ts"))],
+  ["Meta-Supervisor nutzt den PII-maskierten Opt-in-Provider-Router mit lokalem Fallback", /routeAiCompletion/.test(read("app/services/meta-supervisor.server.ts")) && /AI_CLOUD_ENABLED/.test(read("app/services/ai-provider-router.server.ts")) && /deterministic-local-rules/.test(read("app/services/ai-provider-router.server.ts")) && /maskPiiForExternalModel/.test(read("app/services/ai-provider-router.server.ts"))],
   ["Drei-Satz-Puls im Dashboard und Monitor", /executivePulse/.test(read("app/routes/app._index.tsx")) && /executivePulse/.test(read("app/routes/mobile-monitor.tsx"))],
   ["Undo nur für explizit unterstützte interne Aktion", /supportsLocalUndo/.test(read("app/services/autopilot-control.server.ts")) && /updateMany/.test(read("app/services/autopilot-control.server.ts"))],
 ];

@@ -1,5 +1,7 @@
 import db from "../db.server";
 import { runSidekickTool } from "../lib/sidekick.server";
+import { canAccessAgentForShop } from "./access-control.server";
+import { isApprovalException } from "./approval-exceptions";
 import { isShopPaused } from "./autopilot-control.server";
 import type { AuditDomain } from "./agent-types";
 
@@ -227,6 +229,18 @@ export async function resolveApproval(
   }
   const item = await db.approvalQueueItem.findFirst({ where: { id, shop } });
   if (!item) return { ok: false, message: "Eintrag nicht gefunden." };
+  if (!isApprovalException({
+    financialImpactEur: item.financialImpactEur,
+    riskLevel: item.riskLevel,
+    sourceAgentKey: item.sourceAgentKey,
+    title: item.title,
+    summary: item.summary,
+  })) {
+    return { ok: false, message: "Der Eintrag erfüllt die Ausnahme-Kriterien des Fertig-Tischs nicht." };
+  }
+  if (!await canAccessAgentForShop(shop, item.sourceAgentKey)) {
+    return { ok: false, message: "Dieser Fertig-Tisch-Eintrag gehört nicht zu einem gebuchten Fachbereich." };
+  }
   if (item.status !== "PENDING") return { ok: false, message: "Bereits entschieden." };
 
   if (decision === "REJECTED") {

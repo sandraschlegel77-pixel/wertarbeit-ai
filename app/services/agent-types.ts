@@ -20,6 +20,8 @@ export interface AgentDef {
   valueHintEur: number;
   dynamic?: boolean;
   status?: string;
+  advisoryOnly?: boolean;
+  specialistCluster?: string;
 }
 
 export interface DepartmentDef {
@@ -43,6 +45,28 @@ export interface EarningsSummary {
   perAgent: Record<string, EarningsRow>;
   team: Record<string, EarningsRow>;
   army: EarningsRow;
+}
+
+export interface AgentPerformanceSummary {
+  grade: number | null;
+  score: number | null;
+  trend: "UP" | "STABLE" | "DOWN" | "UNAVAILABLE";
+  xp: number;
+  careerRank: string;
+  academyStatus: "CERTIFIED" | "RETRAINING" | "IN_TRAINING";
+  sampleSize: number;
+  approvedCount: number;
+  rejectedCount: number;
+  evolutionCount: number;
+  meanEvolutionScore: number | null;
+  realRevenueEntryCount: number;
+  realRevenueEur: number;
+}
+
+export interface AgentPerformanceSnapshot {
+  status: "available" | "unavailable";
+  message: string | null;
+  byAgent: Record<string, AgentPerformanceSummary>;
 }
 
 export interface ApprovalDto {

@@ -385,28 +385,228 @@ model PaymentLedgerEntry {
 
 /// Händlerverwaltete Vorteile/Erstattungs-Prüffälle; kein Wallet oder Zahlungskonto.
 model CapturedReward {
-  id                 String   @id @default(uuid())
-  shop               String
-  type               String
-  title              String
-  sourceLabel        String?
-  sourceUrl          String?
-  sourceRef          String?
-  estimatedValueEur  Float?
-  actualValueEur     Float?
-  productCount       Int?
-  receivedQuantity   Int?
-  code               String?
-  evidence           String?
-  requestDraft       String?
-  status             String   @default("REVIEW")
-  requestedAt        DateTime?
-  receivedAt         DateTime?
-  accountingReview   String   @default("OPEN")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String    @id @default(uuid())
+  shop              String
+  type              String
+  title             String
+  sourceLabel       String?
+  sourceUrl         String?
+  sourceRef         String?
+  estimatedValueEur Float?
+  actualValueEur    Float?
+  productCount      Int?
+  receivedQuantity  Int?
+  code              String?
+  evidence          String?
+  requestDraft      String?
+  status            String    @default("REVIEW")
+  requestedAt       DateTime?
+  receivedAt        DateTime?
+  accountingReview  String    @default("OPEN")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([shop, sourceRef])
   @@index([shop, status, createdAt])
   @@index([shop, type, status])
+}
+
+/// Protokollierte interne Review-Entscheidungen; kein Gericht oder Rechtsgutachten.
+/// Die Hash-Kette macht nachtraegliche Aenderungen erkennbar, garantiert aber keine physische Unveraenderlichkeit.
+model JudicialDecisionLedger {
+  id                String   @id @default(uuid())
+  shop              String
+  caseId            String
+  sequence          Int
+  stage             Int
+  sourceAgentNumber Int
+  caseTitle         String
+  decision          String
+  rationale         String
+  evidenceHash      String?
+  previousHash      String?
+  entryHash         String
+  createdAt         DateTime @default(now())
+
+  @@unique([shop, sequence])
+  @@unique([shop, caseId, stage])
+  @@index([shop, createdAt])
+  @@index([shop, caseId, sequence])
+}
+
+/// Mandantenspezifische Darstellungseinstellungen. Bankdaten werden nur verschluesselt abgelegt.
+model ShopSettings {
+  shop                  String   @id
+  businessName          String   @default("Wertarbeit Manufaktur")
+  primaryColor          String   @default("#172033")
+  accentColor           String   @default("#D4AF37")
+  fontStyle             String   @default("CLASSIC")
+  tone                  String   @default("HERZLICH_HANDWERKLICH")
+  greeting              String   @default("Mit Hand und Liebe gefertigt.")
+  invoiceLogoBase64     String?
+  bankDetailsCiphertext String?
+  updatedAt             DateTime @updatedAt
+}
+
+/// Inhaberwünsche. Rohtexte werden vor Speicherung auf Zugangsdaten geprüft und bereinigt.
+model OwnerDirective {
+  id                  String    @id @default(uuid())
+  shop                String
+  requestText         String
+  feasibility         String    @default("UNVERIFIED")
+  executionStatus     String    @default("NEEDS_RESEARCH")
+  resultSummary       String?
+  evidenceJson        Json?
+  credentialsRedacted Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  completedAt         DateTime?
+
+  @@index([shop, executionStatus, createdAt])
+}
+
+/// Sichtbarkeit und Verbindungsstatus eines Kanals; enthält ausdrücklich keine Zugangsdaten.
+model WorkspaceChannelConfig {
+  id              String    @id @default(uuid())
+  shop            String
+  channelKey      String
+  displayName     String
+  isVisible       Boolean   @default(true)
+  connectorStatus String    @default("NOT_CONNECTED")
+  lastCheckedAt   DateTime?
+  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+
+  @@unique([shop, channelKey])
+  @@index([shop, isVisible])
+}
+
+/// Global gebündelter Marktplatz-/Featurewunsch aus Subscriber-Shops.
+model SubscriberFeatureWish {
+  id               String                      @id @default(uuid())
+  shop             String
+  wishKey          String                      @unique
+  title            String
+  description      String
+  voteCount        Int                         @default(0)
+  preflightStatus  String                      @default("NEEDS_RESEARCH")
+  feasibility      String                      @default("UNVERIFIED")
+  riskLevel        String                      @default("UNKNOWN")
+  estimatedCostEur Float?
+  evidenceJson     Json?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  votes            SubscriberFeatureWishVote[]
+
+  @@index([preflightStatus, voteCount, updatedAt])
+  @@index([shop, createdAt])
+}
+
+/// Einmalige Stimme pro Shop und gebündeltem Featurewunsch.
+model SubscriberFeatureWishVote {
+  id        String                @id @default(uuid())
+  shop      String
+  wishId    String
+  createdAt DateTime              @default(now())
+  wish      SubscriberFeatureWish @relation(fields: [wishId], references: [id], onDelete: Cascade)
+
+  @@unique([shop, wishId])
+  @@index([shop, createdAt])
+}
+
+/// Shopbezogene, quellengestützte Fähigkeiten. Nur aktuell verifizierte Einträge dürfen Aktionen freischalten.
+model DomainCapability {
+  id               String                  @id @default(uuid())
+  shop             String
+  domainKey        String
+  displayName      String
+  feasibility      String
+  sourceUrl        String?
+  sourceTitle      String?
+  evidenceSummary  String
+  evidenceHash     String?
+  verifiedAt       DateTime?
+  expiresAt        DateTime?
+  estimatedCostEur Float?
+  riskLevel        String                  @default("UNKNOWN")
+  isVerified       Boolean                 @default(false)
+  bindings         AgentInterfaceBinding[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([shop, domainKey])
+  @@index([shop, isVerified, expiresAt])
+}
+
+/// Bindet einen Agenten an eine tatsächlich vorhandene Schnittstelle; Geheimnisse liegen nicht in diesem Datensatz.
+model AgentInterfaceBinding {
+  id                String           @id @default(uuid())
+  shop              String
+  agentKey          String
+  capabilityId      String
+  interfaceKey      String
+  status            String           @default("DISABLED")
+  configurationJson Json?
+  lastVerifiedAt    DateTime?
+  capability        DomainCapability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([shop, agentKey, interfaceKey])
+  @@index([shop, status])
+  @@index([capabilityId])
+}
+
+/// Nachvollziehbares Quellenregister für interne Rechts-/Steuerregeln, keine automatische Rechtsberatung.
+model LegalTaxRuleLedger {
+  id                String    @id @default(uuid())
+  shop              String
+  ruleKey           String
+  jurisdiction      String
+  sourceUrl         String
+  sourceTitle       String
+  sourceHash        String
+  sourcePublishedAt DateTime?
+  effectiveAt       DateTime?
+  verifiedAt        DateTime
+  reviewStatus      String    @default("UNVERIFIED")
+  reviewerNote      String?
+  createdAt         DateTime  @default(now())
+
+  @@unique([shop, ruleKey, sourceHash])
+  @@index([shop, reviewStatus, verifiedAt])
+}
+
+/// Dokumentinhalt plus SHA-256-Verkettung; GoBD-Eignung erfordert zusätzlich geprüfte Aufbewahrungsprozesse.
+model GoBDDocumentArchive {
+  id             String   @id @default(uuid())
+  shop           String
+  documentType   String
+  fileName       String
+  mimeType       String
+  contentBytes   Bytes
+  contentSha256  String
+  previousHash   String?
+  entryHash      String
+  sourceRecordId String?
+  archivedAt     DateTime @default(now())
+
+  @@unique([shop, entryHash])
+  @@index([shop, documentType, archivedAt])
+}
+
+/// Reale Verbindungsereignisse. Ein Datensatz wird nur bei beobachtetem Request/Result geschrieben.
+model LiveConnectionTrace {
+  id           String   @id @default(uuid())
+  shop         String
+  channelKey   String
+  agentKey     String?
+  eventType    String
+  outcome      String
+  requestHash  String?
+  responseHash String?
+  detail       String?
+  occurredAt   DateTime @default(now())
+
+  @@index([shop, channelKey, occurredAt])
+  @@index([shop, outcome, occurredAt])
 }

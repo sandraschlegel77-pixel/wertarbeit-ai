@@ -36,8 +36,11 @@ if (host === "localhost") {
 }
 
 export default defineConfig({
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
   server: {
-    allowedHosts: [host],
+    allowedHosts: true,
     cors: {
       preflightContinue: true,
     },
@@ -56,6 +59,11 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
   optimizeDeps: {
-    include: ["@shopify/app-bridge-react"],
+    include: [
+      "@shopify/app-bridge-react",
+      "@xyflow/react",
+      "@dagrejs/dagre",
+      "lucide-react",
+    ],
   },
 }) satisfies UserConfig;

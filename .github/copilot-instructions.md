@@ -5,7 +5,7 @@ Diese Datei gilt für Änderungen in diesem Repository. Der vollständige fachli
 ## Projekt und Arbeitsweise
 
 - Shopify-App für Wertarbeit Manufaktur, einen nachhaltigen Familienbetrieb in Neuburg an der Kammel, Bayern. Ton: warm, handwerklich, ehrlich und wertschätzend; keine austauschbaren KI-Floskeln.
-- Aktueller Roster: #000 als separate Meta-Aufsicht, 220 Stammagenten (#1–#220) in 26 Abteilungen und dynamische Agenten ab #221. #220 aggregiert die tatsächlich vorhandene shopbezogene Freigabewarteschlange; keine vorbereiteten Marktplatz-, Google-Business-, Messe- oder Werkstattdaten erfinden.
+- Aktueller Roster: #000 als separate Owner-only Meta-Aufsicht, 232 Kernprofile (#1–#232), 100 Apex-Profile (#301–#400) in 26 Abteilungen und dynamische Agenten ab #401. Bei bereits belegten Nummern zwischen #301–#400 bleibt das gespeicherte dynamische Profil bis zur Nummernmigration erhalten und verdeckt das gleich nummerierte Apex-Profil für diesen Shop. #220 zeigt nur persistierte Ausnahmefälle; keine Events oder Ergebnisse erfinden.
 - Änderungen präzise und eng am Auftrag halten. Bestehende Funktionen, Daten und Dateien erhalten; nichts parallel zu Cline oder einem laufenden Build überschreiben. Vor Dateiänderungen den aktuellen Arbeitsbaum prüfen und fremde Änderungen integrieren.
 - Keine Secrets in Code, Doku, Logs, Git oder URLs. Nur Variablennamen dokumentieren. `.env` niemals committen.
 - Keine Commit-, Push-, Deploy-, Datenbank-Migrations- oder Löschoperation ohne ausdrücklichen Auftrag. Tests/Builds nicht parallel zu anderen Bearbeitungen starten.
@@ -66,4 +66,22 @@ Diese Datei gilt für Änderungen in diesem Repository. Der vollständige fachli
 - Für öffentliche App-Store-Vermarktung nur implementierte Funktionen und belegte Ersparnisse bewerben. Shopify-Basic-Kompatibilität, Datenschutz, Berechtigungen und Tariflimits konkret prüfen; ein grüner statischer Selbsttest ist keine vollständige App-Store- oder Rechtsfreigabe.
 - Keine vollständige Impressums- oder Datenschutzkonformität behaupten, solange vollständiger Betreibername, ladungsfähige Anschrift, direkte Kontaktangaben, tatsächliche Hosting-/Aufbewahrungsdetails und die vollständigen Datenzugriffs-/Löschpfade nicht verifiziert sind. Fehlende rechtliche Stammdaten nie erfinden.
 - Onboarding-Preisauswahl ist keine Shopify-Buchung. Planpreis und Listing müssen vor Release mit der tatsächlich bestätigten Shopify-Billing-Subscription abgeglichen werden.
+
+## Intent-first-Marktplätze und Rollenrechte
+
+- Die Bedienung soll vom Händlerwunsch ausgehen: Der Inhaber kann ein Ziel in Alltagssprache benennen und soll nicht selbst zuerst API-Verfügbarkeit, Portale oder technische Voraussetzungen recherchieren müssen. API-Schlüssel, Passwörter, OAuth-Tokens und Kundendaten gehören niemals in dieses Freitextfeld.
+- `OWNER` wird ausschließlich mit `isOwnerShop(shop)` anhand der exakten konfigurierten Shopdomain erkannt. `SUBSCRIBER`-Rechte müssen serverseitig getrennt und zusätzlich durch die tatsächlich aktive Subscription/Module geprüft werden; UI-Ausblendung allein ist keine Autorisierung.
+- Inhaber-Direktiven dürfen nur innerhalb sicherer, ausdrücklich erlaubter Fähigkeiten interpretiert werden. Subscriber-Wünsche für neue Funktionen oder Marktplätze dürfen Vorschläge erfassen, aber weder globale App-Konfiguration noch andere Shops verändern.
+- Marktplatzwünsche müssen unabhängig von einer fest codierten Kanalliste erfasst werden können. Ein Katalogstatus darf „verbunden“ oder „verfügbar“ nur nach erfolgreicher, echter Konfiguration bzw. Prüfung melden; bloße Roster-Rollen, Portal-Links, kopierte Anfrageentwürfe und gespeicherte Wünsche sind kein Adapter und keine Recherche.
+- Verfügbarkeits- und Compliance-Recherchen müssen auf nachvollziehbare offizielle Anbieter-/Entwicklerquellen gestützt werden und Quelle, Abruf-/Prüfdatum, Prüfumfang und Unsicherheit ausweisen. Mögliche Ergebnisse sind direkte API, offizieller Feed/Partner, manuelle Assistenz, offiziell nicht möglich oder unbestätigt. Ohne verlässliche Quelle bzw. verfügbare Recherchefähigkeit bleibt das Ergebnis ausdrücklich unbestätigt.
+- Ein KI-Modell ohne dokumentierte Websuche darf nicht als Recherche-Agent ausgegeben werden. Ein fehlender Schlüssel, erschöpftes Kontingent, Netzwerkfehler oder nicht erreichbare Quelle darf weder als positive Prüfung noch als erfolgreiche Anbindung erscheinen. Kein Free-Tier-Angebot, 0-€-Betrieb oder unbegrenztes Kontingent ist garantiert.
+- Reale API-/Feed-Anbindungen brauchen pro Plattform geprüfte Bedingungen, minimale Berechtigungen, sichere Tokenablage, Mandantentrennung, Rate-Limits, Idempotenz, begrenzte Retries, Dry-Run und nachvollziehbare Fehler. Außenwirkung erst nach erfüllten Plattformanforderungen und nötiger Inhaberfreigabe.
+- „Automatisch ausführen“ gilt nur für eine tatsächlich implementierte und getestete Fähigkeit mit geklärten Berechtigungen, Kosten und Rücknahmepfad. Ausschließlich echte Ausführungsergebnisse dürfen als erledigte Mitarbeiterarbeit protokolliert werden.
+
+## Ausbau und Quellenprüfung
+
+- Das Zielbild von 400+ Stammprofilen ist keine Bestandsangabe. Vor dem Anlegen neuer Nummernbereiche müssen Nummernraum, bestehende IDs, Migrationen und Roster-Tests geprüft werden; bestehende IDs niemals stillschweigend neu nummerieren.
+- Neue Agentenrollen benötigen konkrete, getestete Fachlogik und eine tatsächliche Schnittstelle, bevor sie als autonom ausführbar oder als erledigte Arbeit angezeigt werden. Ein Rollenname, Prompt oder Abteilungsdiagramm genügt nicht.
+- Vom Nutzer gelieferte Gesetzesbezeichnungen, Schwellenwerte, Stichtage, Standards, API-Versionen und künftige Rechtsänderungen sind Prüfhinweise, keine verifizierten Tatsachen. Vor Code, UI-Aussagen, Steuerregeln oder automatischen Entscheidungen sind aktuelle offizielle Primärquellen und – bei Rechts-/Steuerwirkung – fachliche Prüfung erforderlich.
+- Rechtliche, steuerliche oder produktbezogene Automatismen müssen Unsicherheit sichtbar machen und dürfen nicht als Beratung, verbindliche Prüfung oder Rechtskonformitätsgarantie bezeichnet werden. Unbekannte oder nicht verifizierte Fälle gehen in eine menschliche Prüfung statt in eine Erfolgsmeldung.
 

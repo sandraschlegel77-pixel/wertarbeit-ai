@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 import { C, btn, card, input } from "./theme";
+import { DomainInfoButton } from "./DomainInfoButton";
+import { PLATFORM_CATALOG } from "../../services/marketplace-catalog";
 
 type FeedUrls = { otto: string | null; hood: string | null; avocadostore: string | null };
 type ActionResult = { ok?: boolean; message?: string };
+type ChannelConfig = { channelKey: string; displayName: string; isVisible: boolean; connectorStatus: string };
+type FeatureWish = { id: string; title: string; voteCount: number; preflightStatus: string; feasibility: string };
 type BankResult = {
   ok?: boolean;
   error?: string;
@@ -16,7 +20,11 @@ type BankResult = {
 
 interface Props {
   shop: string;
+  isOwner: boolean;
+  subscriptionActive: boolean;
   feeds: FeedUrls;
+  channelConfigs: ChannelConfig[];
+  featureWishes: FeatureWish[];
   googleSheetsConfigured: boolean;
   whatsAppConfigured: boolean;
   whatsAppOptIns: number;
@@ -45,26 +53,6 @@ function isWorkshopDraft(value: unknown): value is WorkshopDraft {
 const fieldStyle = { ...input, minWidth: 180 };
 const statusColor = (ok: boolean) => ok ? C.emerald : C.amber;
 
-const PLATFORM_CATALOG = [
-  { name: "eBay", portal: "https://developer.ebay.com/", status: "API-Adapter nicht angebunden" },
-  { name: "Etsy", portal: "https://developers.etsy.com/", status: "API-Adapter nicht angebunden" },
-  { name: "Kaufland", portal: "https://sellerapi.kaufland.com/", status: "API-Adapter nicht angebunden" },
-  { name: "Amazon SP-API", portal: "https://developer-docs.amazon.com/sp-api/", status: "API-Adapter nicht angebunden" },
-  { name: "Google Business Profile", portal: "https://developers.google.com/my-business/", status: "API-Adapter nicht angebunden" },
-  { name: "Pinterest", portal: "https://developers.pinterest.com/", status: "API-Adapter nicht angebunden" },
-  { name: "Meta", portal: "https://developers.facebook.com/", status: "API-Adapter nicht angebunden" },
-  { name: "TikTok", portal: "https://developers.tiktok.com/", status: "API-Adapter nicht angebunden" },
-  { name: "YouTube", portal: "https://developers.google.com/youtube/v3/", status: "API-Adapter nicht angebunden" },
-  { name: "DHL", portal: "https://developer.dhl.com/", status: "API-Adapter nicht angebunden" },
-  { name: "DPD", portal: "https://www.dpd.com/de/de/", status: "API-Adapter nicht angebunden" },
-  { name: "WhatsApp Business", portal: "https://developers.facebook.com/docs/whatsapp/cloud-api/", status: "whatsapp" },
-  { name: "Google Sheets", portal: "https://developers.google.com/sheets/api", status: "sheets" },
-  { name: "Google Drive", portal: "https://developers.google.com/drive/api", status: "API-Adapter nicht angebunden" },
-  { name: "Otto Market", portal: "https://www.otto.market/", status: "otto" },
-  { name: "Hood.de", portal: "https://www.hood.de/", status: "hood" },
-  { name: "Avocadostore", portal: "https://www.avocadostore.de/haendler", status: "avocadostore" },
-] as const;
-
 export function PlatformConnectorsPanel(props: Props) {
   const sheets = useFetcher<ActionResult>();
   const workshop = useFetcher<ActionResult>();
@@ -73,6 +61,8 @@ export function PlatformConnectorsPanel(props: Props) {
   const origin = useFetcher<ActionResult>();
   const whatsapp = useFetcher<{ ok?: boolean; status?: string; error?: string }>({ key: "whatsapp-message" });
   const ledger = useFetcher<BankResult>({ key: "payment-ledger" });
+  const wish = useFetcher<ActionResult>({ key: "subscriber-feature-wish" });
+  const channel = useFetcher<ActionResult>({ key: "workspace-channel" });
   const [developerLanguage, setDeveloperLanguage] = useState<"de" | "en">("de");
   const [copyMessage, setCopyMessage] = useState("");
   const [workshopDrafts, setWorkshopDrafts] = useState<WorkshopDraft[]>([]);
@@ -188,7 +178,25 @@ export function PlatformConnectorsPanel(props: Props) {
         ? "Feed konfiguriert; Marketplace-Import nicht getestet"
         : "Bereit für Feed-Konfiguration";
     }
-    return key;
+    return "API-Adapter nicht angebunden";
+  }
+
+  const channelVisibility = new Map(props.channelConfigs.map((config) => [config.channelKey, config.isVisible]));
+  const visiblePlatforms = PLATFORM_CATALOG.filter((platform) => channelVisibility.get(platform.key) !== false);
+  const hiddenPlatforms = PLATFORM_CATALOG.filter((platform) => channelVisibility.get(platform.key) === false);
+
+  function channelToggleForm(platform: (typeof PLATFORM_CATALOG)[number], visible: boolean) {
+    return (
+      <channel.Form method="post">
+        <input type="hidden" name="type" value="set_workspace_channel_visibility" />
+        <input type="hidden" name="channelKey" value={platform.key} />
+        <input type="hidden" name="displayName" value={platform.name} />
+        <input type="hidden" name="isVisible" value={visible ? "true" : "false"} />
+        <button type="submit" style={btn} disabled={channel.state !== "idle" || !props.subscriptionActive}>
+          {visible ? "Im Cockpit anzeigen" : "Ausblenden"}
+        </button>
+      </channel.Form>
+    );
   }
 
   return (
@@ -378,11 +386,14 @@ export function PlatformConnectorsPanel(props: Props) {
       </section>
 
       <section style={{ ...card, display: "grid", gap: 10 }}>
-        <div>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <div>
           <h2 style={{ margin: 0, color: C.champagne }}>Plattform-Cockpit &amp; Entwicklerzugänge</h2>
           <p style={{ color: C.muted, fontSize: 12, marginBottom: 0 }}>
-            Portallinks und Anfrageentwürfe sind vorbereitet. „Bereit“ bedeutet nicht verbunden; fehlende Adapter und nicht ausgeführte Verbindungstests werden ausdrücklich ausgewiesen.
+            Kanäle können im Cockpit ein- oder ausgeblendet werden. Sichtbarkeit bedeutet nicht verbunden; Adapter- und Recherche-Ergebnisse werden getrennt ausgewiesen.
           </p>
+          </div>
+          <DomainInfoButton domain="platforms" />
         </div>
         <label style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 12 }}>
           Anfrageentwurf-Sprache
@@ -393,11 +404,12 @@ export function PlatformConnectorsPanel(props: Props) {
           <span style={{ color: C.muted }}>#202 · Developer-Korrespondent DE/EN · lokaler Entwurf, kein Versand</span>
         </label>
         {copyMessage && <div role="status" style={{ color: C.muted, fontSize: 12 }}>{copyMessage}</div>}
+        {channel.data?.message && <div role={channel.data.ok ? "status" : "alert"} style={{ color: channel.data.ok ? C.emerald : C.amber }}>{channel.data.message}</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 8 }}>
-          {PLATFORM_CATALOG.map((platform) => (
-            <article key={platform.name} style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: 10, display: "grid", gap: 7 }}>
+          {visiblePlatforms.map((platform) => (
+            <article key={platform.key} style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: 10, display: "grid", gap: 7 }}>
               <strong>{platform.name}</strong>
-              <span style={{ color: platform.status === "API-Adapter nicht angebunden" ? C.amber : C.muted, fontSize: 11 }}>
+              <span style={{ color: platform.status === "NOT_CONNECTED" ? C.amber : C.muted, fontSize: 11 }}>
                 {platformStatus(platform.status)}
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -405,10 +417,53 @@ export function PlatformConnectorsPanel(props: Props) {
                 <button type="button" style={btn} onClick={() => void copyDeveloperRequest(platform.name)}>
                   Anfrage kopieren
                 </button>
+                {!props.isOwner && channelToggleForm(platform, false)}
               </div>
             </article>
           ))}
         </div>
+        {hiddenPlatforms.length > 0 && (
+          <details>
+            <summary style={{ cursor: "pointer", color: C.muted }}>Ausgeblendete Kanäle ({hiddenPlatforms.length})</summary>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 8 }}>
+              {hiddenPlatforms.map((platform) => (
+                <div key={platform.key} style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>{platform.name}</span>
+                  {!props.isOwner && channelToggleForm(platform, true)}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+        {!props.isOwner && (
+          <section style={{ borderTop: `1px solid ${C.line}`, paddingTop: 12, display: "grid", gap: 8 }}>
+            <h3 style={{ color: C.champagne, margin: 0 }}>Neuen Marktplatz vorschlagen</h3>
+            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+              Freitext ist erlaubt. Der Wunsch wird shopübergreifend gebündelt. Eine Quellenprüfung oder Anbindung wird nur ausgewiesen, wenn sie tatsächlich belegt und implementiert ist.
+            </p>
+            {props.subscriptionActive ? (
+              <wish.Form method="post" style={{ display: "grid", gap: 8 }}>
+                <input type="hidden" name="type" value="suggest_marketplace" />
+                <input name="title" minLength={2} maxLength={80} required placeholder="Marktplatz oder Plattform, z. B. nebenan.de" style={fieldStyle} />
+                <textarea name="description" maxLength={500} placeholder="Was möchtest du dort tun? (Keine Zugangsdaten eingeben.)" style={{ ...fieldStyle, minHeight: 65 }} />
+                <button type="submit" style={btn} disabled={wish.state !== "idle"}>Neuen Marktplatz vorschlagen</button>
+              </wish.Form>
+            ) : (
+              <p role="status" style={{ color: C.amber, margin: 0 }}>Für Subscriber-Wünsche ist eine aktive Subscription erforderlich.</p>
+            )}
+            {wish.data?.message && <p role={wish.data.ok ? "status" : "alert"} style={{ color: wish.data.ok ? C.emerald : C.amber, margin: 0 }}>{wish.data.message}</p>}
+            {props.featureWishes.length > 0 && (
+              <div style={{ display: "grid", gap: 4 }}>
+                <strong>Deine / gebündelte Wünsche</strong>
+                {props.featureWishes.map((item) => (
+                  <small key={item.id} style={{ color: C.muted }}>
+                    {item.title} · {item.voteCount} Shop-Stimme(n) · {item.preflightStatus} · {item.feasibility}
+                  </small>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </section>
     </div>
   );

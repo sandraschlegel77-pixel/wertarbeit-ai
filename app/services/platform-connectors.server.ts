@@ -6,6 +6,7 @@ import db from "../db.server";
 import { unauthenticated } from "../shopify.server";
 import { isDryRun } from "./ai-agents.server";
 import { isShopPaused } from "./autopilot-control.server";
+import { buildXtoolLayeredSvg, ManufakturInputError } from "./manufaktur-apex-core";
 import type { ShopifyAdmin } from "./admin-types";
 import {
   escapeXml,
@@ -726,8 +727,26 @@ export async function createWorkshopJob(input: {
     throw new WorkshopJobInputError("SVG-Maße müssen zwischen 0 und 1000 mm liegen.");
   }
   if (input.engravingText.length > 500) throw new WorkshopJobInputError("Gravurtext darf höchstens 500 Zeichen enthalten.");
+  let svgContent = input.svgContent.trim();
+  let workshopNote: string | null = null;
+  if (!svgContent) {
+    try {
+      const generated = buildXtoolLayeredSvg({
+        engravingText: input.engravingText,
+        material: input.material,
+        widthMm: input.widthMm,
+        heightMm: input.heightMm,
+        font: /serif|georgia|times/i.test(input.fontFamily) ? "SERIF" : "SANS",
+      });
+      svgContent = generated.svg;
+      workshopNote = generated.note;
+    } catch (error) {
+      if (error instanceof ManufakturInputError) throw new WorkshopJobInputError(error.message);
+      throw error;
+    }
+  }
   try {
-    validateWorkshopSvg(input.svgContent);
+    validateWorkshopSvg(svgContent);
   } catch (error) {
     if (error instanceof WorkshopSvgInputError) throw new WorkshopJobInputError(error.message);
     throw error;
@@ -743,7 +762,8 @@ export async function createWorkshopJob(input: {
       fontFamily: input.fontFamily.trim(),
       ringSize: input.ringSize.trim(),
       gravurText: input.engravingText.trim(),
-      svgContent: input.svgContent,
+      svgContent,
+      workshopNote,
       status: "OPEN",
     },
     select: { id: true },
@@ -751,7 +771,7 @@ export async function createWorkshopJob(input: {
   return row;
 }
 
-async function readWorkshopSvg(row: {
+export async function readWorkshopSvg(row: {
   svgContent: string | null;
   svgPath: string | null;
 }): Promise<string | null> {

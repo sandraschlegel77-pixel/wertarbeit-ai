@@ -2,18 +2,18 @@ import db from "../db.server";
 import type { AgentDef } from "./agent-types";
 import { DEPARTMENTS, STAMM_AGENTS, STAMM_COUNT } from "./agent-roster";
 import { OWNER_SHOP_DOMAIN_DEFAULT } from "./roster-tools";
+import { isOwnerShop } from "./access-control.server";
+import { getPrimaryOwnerShopDomain } from "./access-control-core";
 
 export { DEPARTMENTS, STAMM_AGENTS, STAMM_COUNT };
+export { isOwnerShop };
 export { runAgent, bookRealRevenue } from "./agent-runner.server";
 export type { RunAgentResult } from "./agent-runner.server";
 export { isShopPaused, setShopPaused, undoAutopilotAction, supportsLocalUndo } from "./autopilot-control.server";
 export { selectOptimalFreeModel, runMetaSupervisorAudit } from "./meta-supervisor.server";
 
 export const ownerShopDomain = (): string =>
-  process.env.OWNER_SHOP_DOMAIN?.replace(/^https?:\/\//, "").replace(/^:\/\//, "") ||
-  OWNER_SHOP_DOMAIN_DEFAULT;
-
-export const isOwnerShop = (shop: string): boolean => shop === ownerShopDomain();
+  getPrimaryOwnerShopDomain(process.env.OWNER_SHOP_DOMAIN, OWNER_SHOP_DOMAIN_DEFAULT);
 
 /** DRY_RUN_MODE: Standard AN, bis der Inhaber live schaltet (CompanyRule oder .env). */
 export async function isDryRun(shop: string): Promise<boolean> {
@@ -49,7 +49,7 @@ export async function ownerVeto(shop: string, agent: AgentDef): Promise<string |
   return null;
 }
 
-/** Stamm (#1–#220) + dynamische Agenten (#221 → ∞) dieser Firma. */
+/** Stammprofile #1–#232 und #301–#400; neue dynamische Agenten beginnen bei #401. */
 export async function getRoster(shop: string): Promise<AgentDef[]> {
   let dynamic: AgentDef[] = [];
   try {
@@ -79,7 +79,9 @@ export async function getRoster(shop: string): Promise<AgentDef[]> {
   } catch {
     /* Tabelle fehlt noch -> nur Stamm */
   }
-  return [...STAMM_AGENTS, ...dynamic];
+  const occupiedNumbers = new Set(dynamic.map((agent) => agent.number));
+  const permanent = STAMM_AGENTS.filter((agent) => !occupiedNumbers.has(agent.number));
+  return [...permanent, ...dynamic].sort((a, b) => a.number - b.number);
 }
 
 export function descendantsOf(roster: AgentDef[], number: number): number[] {

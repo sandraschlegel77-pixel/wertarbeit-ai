@@ -47,7 +47,7 @@ export function DirectorChips() {
   return (
     <>
       {[153, 154, 155, 156, 157].map((n, i) => (
-        <g key={n} className="ap-pulse">
+        <g key={n}>
           <rect x={36 + i * 232} y="255" width="160" height="40" rx="8" fill={C.slate3} stroke={C.emerald} />
           <text x={116 + i * 232} y="272" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.emerald}>Direktor #{n}</text>
           <text x={116 + i * 232} y="287" textAnchor="middle" fontSize="10" fill={C.muted}>4 Abteilungen</text>
@@ -69,7 +69,7 @@ export function CoreProcessor() {
         </g>
       ))}
       <text x="600" y="635" textAnchor="middle" fontSize="16" fontWeight="800" fill={C.slate}>AtelierPilot AI Core – 0,00 €</text>
-      <text x="600" y="656" textAnchor="middle" fontSize="11" fill={C.slate}>220 Stamm-KI · 26 Abteilungen · 66 Tandems</text>
+      <text x="600" y="656" textAnchor="middle" fontSize="11" fill={C.slate}>232 Rollenprofile · 26 Abteilungen · 66 Tandems</text>
       <text x="600" y="672" textAnchor="middle" fontSize="10" fill={C.slate}>
         Modul-Pins: {BUILDING_MODULES.map((m) => m.id.toUpperCase()).join(" · ")}
       </text>
@@ -77,12 +77,12 @@ export function CoreProcessor() {
   );
 }
 
-/** Expansions-Sektor #221 → ∞. */
+/** Expansions-Sektor für neue dynamische Agenten ab #401. */
 export function ExpansionSector({ count }: { count: number }) {
   return (
     <g>
       <rect x="860" y="600" width="300" height="84" rx="10" fill={C.slate2} stroke={C.gold} strokeDasharray="6 4" />
-      <text x="1010" y="632" textAnchor="middle" fontSize="14" fontWeight="700" fill={C.gold}>Expansions-Sektor #221 → ∞</text>
+      <text x="1010" y="632" textAnchor="middle" fontSize="14" fontWeight="700" fill={C.gold}>Expansions-Sektor #401 → ∞</text>
       <text x="1010" y="653" textAnchor="middle" fontSize="11" fill={C.text}>{count} dynamische KI-Mitarbeiter</text>
       <text x="1010" y="670" textAnchor="middle" fontSize="10" fill={C.muted}>Kandidaten nach Prüfung und Freigabe</text>
     </g>

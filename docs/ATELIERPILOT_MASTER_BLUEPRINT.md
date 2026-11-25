@@ -1,6 +1,6 @@
 # AtelierPilot AI – Master-Blueprint
 
-**Stand der Übergaben:** 23. November 2026  
+**Stand der Übergaben:** 24. November 2026
 **Zweck:** Zusammenführung der fachlichen, technischen und betrieblichen Vorgaben aus den Projektübergaben. Dieses Dokument trennt **Zielbild** von **im Repository nachgewiesenem Ist-Stand**. Eine beschriebene Funktion gilt nicht allein durch ihre Erwähnung als implementiert, getestet oder rechtskonform.
 
 ## 1. Unternehmen und Marke
@@ -32,19 +32,20 @@ Geplantes Prozessor-/Modulmodell:
 
 ## 3. Unternehmensstruktur und Schutzmechanismen
 
-Aktueller Roster: 220 Stamm-KI-Mitarbeiter (#1–#220) in 26 Abteilungen; #000 ist die separate Meta-Aufsicht. Dynamische Agenten beginnen ab #221. Diese Nummerierung ist im Code-Roster verankert; die Rollenbeschreibung allein bestätigt keine externe Plattformanbindung oder automatisch erzeugte Arbeitsergebnisse.
+Aktueller Roster: 232 Kernprofile (#1–#232) plus 100 Apex-Profile (#301–#400) in 26 Abteilungen; #000 ist Owner-only. Neue dynamische Agenten beginnen ab #401. Bestehende dynamische Profile in #301–#400 behalten bis zur Nummernmigration Vorrang vor den gleich nummerierten Apex-Profilen. Rollenbeschreibungen und vorhandene Sidekick-Zuordnungen belegen keine externe Plattformanbindung oder automatisch erzeugte Arbeitsergebnisse.
 
 - **Ebene 0:** Inhaber, `OwnerRule`, `DRY_RUN_MODE`, Handy-Monitor `/mobile-monitor`.
 - **Ebene 1:** Vorstand #158–#161 und #171: CEO, CFO/CRO, COO/CCO, AI Evolution, General Counsel.
 - **Ebene 2:** Direktoren #153–#157.
 - **Ebene 3:** Abteilungsleitungen #133–#152 sowie Abteilungen 21–26.
-- **Ebene 4/5:** Teamleiter #1–#66, Co-Agenten #67–#132 sowie die Fach- und Plattformrollen #162–#220.
+- **Ebene 4/5:** Teamleiter #1–#66, Co-Agenten #67–#132 sowie Fach- und Plattformrollen #162–#232; #221–#232 sind derzeit nicht ausführbare Rollenprofile.
 - **Abteilungen 16–20:** vorgesehene Hintergrund- und Zusatzumsatzprozesse (Post-Checkout, Ratgeber/Affiliate, Downloads, Gebühren-/Versand-Rückforderungen, Fördermittel, B2B, Edelmetall-Restwert, Pflege).
 - **Abteilungen 21–23:** drei Prüfbereiche – Recht (`LEGAL_VERIFIED_3X`), Finanzen/Steuern (`FINANCE_VERIFIED_3X`), Meisterwerkstatt (`CRAFT_VERIFIED_3X`).
 - **Abteilung 24:** Orchestrierung, Anti-Kollision, Harmonie- und Speed-Messung.
 - **Abteilung 25 (#186–#206):** Plattform-/API-Armada für Marktplatz-, Feed-, Bestands-, Versand-, DATEV-/Payment- und Zugriffsprüfungen; #206 bereitet manuelle Kleinanzeigen-Erneuerungspakete vor. Automatisches Auslesen von Ablauf-/Aufrufdaten oder Verlängern auf Kleinanzeigen ist nicht implementiert.
 - **Abteilung 26 (#207–#220):** Google-Business-/Regional-SEO, Event-, Werkstatt-, Inventur-, B2B-, PR- und Vorbereitungsrollen. #220 aggregiert die vorhandene `ApprovalQueueItem`-Freigabewarteschlange im 1-Klick-Fertig-Tisch. Google-Business-, Messe-, Kalender-, Rohmaterial-, Versicherungs-, Kundenfoto- und Wettbewerbsquellen sind nicht automatisch angebunden; ohne verifizierte Daten werden keine Einträge erfunden.
-- **Weiterentwicklung:** `AgentSkillEvolution` mit Versionen/Rollback; dynamisches Wachstum über `DynamicAiAgent` ab #221.
+- **Apex-Rollenprofile (#221–#232):** Gegenspieler, vier interne Prüfprofile, Akademie-/Prompt-Profile, UI/UX-, API-, Experiment-, Saison- und Audio-Briefing-Profile. Sie sind als nicht ausführbar gesperrt, bis fachliche Implementierung, Messdaten und nötige Freigaben vorhanden sind; sie sind keine Gerichte oder Rechtsberatung.
+- **Weiterentwicklung:** `AgentSkillEvolution` mit Versionen/Rollback; dynamisches Wachstum über `DynamicAiAgent` ab #401. Vor dem Produktivstart muss `npm run migrate:agent-numbers` eventuell vorhandene dynamische Nummern bis #400 und deren Schlüsselverweise transaktional verschieben; das Skript wurde hier nicht ausgeführt.
 - **Verdienst:** `AgentRevenueEntry`/`bookRealRevenue`; reale Werte getrennt von Dry-Run-/Potenzialwerten für Monat und Gesamtzeitraum ausweisen.
 - **Prüf- und Freigabeschutz:** Faktenprüfung gegen Shop-Daten, 7-Tage-Anti-Spam-Lock, BrandVoiceGuard, `ApprovalQueueItem`, nachvollziehbare Aktionen und Undo, wo fachlich sicher.
 - Keine Zahlungen oder verbindlichen Bestellungen ohne explizite Inhaberfreigabe. Überschriften wie „24/7“ oder „vollautomatisch“ sind kein Beleg für implementierte Funktion.
@@ -101,10 +102,10 @@ Die Werkzeuge gehören zu fünf Intents: `brand_dna_and_auto_listing`, `multicha
 - Dashboard-Ziel: Autopilot-/OwnerRule-Zentrale, Dry-Run-Schalter, Warnungs-Override, Live-Protokoll/Undo, Onboarding, Demo-Modus, ROI-Zähler mit Echt-/Potenzialtrennung, KI-Mitarbeiter-/Abteilungsansicht, Modul-Kacheln, Tooltips und Sidekick-Einstiege.
 - **AtelierBot im Dashboard:** Der schwebende, einklappbare, regelbasierte Baukasten-Assistent stellt drei Fragen zu Shop-Typ, Zeitfresser und Startstrategie; ein externer KI-Aufruf ist dafür nicht nötig. Er empfiehlt Module, zugeordnete Abteilungen/KI-Mitarbeiter, den aus `calcQuote` berechneten Preis und eine als grobe Schätzung gekennzeichnete Wochen-Zeitersparnis. Die Übernahme setzt nur die Modulauswahl im Preisrechner; sie aktiviert kein Abo und löst keine Abrechnung aus. Für den Inhaber-Shop gilt `OWNER UNLIMITED – 0,00 €`.
 - PWA `/mobile-monitor`: QR-Login mit `MOBILE_MONITOR_TOKEN`, Freigaben, Web-Speech, Ton-/Münzanimation, optional Telegram-Push und Offline-Queue. Sicherheits- und Browserberechtigungen transparent behandeln.
-- Vorgesehene Tresor-Dokumente: Rechnungen, ZUGFeRD/XRechnung, DATEV-Export, CN22/CN23, GRA-Zertifikate, DPP/QR, Chargeback-Belege, Versicherungs-Dossiers, Grußkarten, B2B-Dokumente und xTool-SVGs. Downloads müssen Shop-Zugriff und sichere Pfade prüfen.
+- Tresor-Downloads sind shop-authentifiziert und nutzen vorhandene `Invoice`-, `GraCertificate`- und `XtoolSvg`-Daten sowie Brand-Einstellungen. Verfügbar sind Rechnungsdatenblatt, Steuerberater-Prüf-ZIP, DIN-A6-Karte, DPP-Datensatz-PDF, Chargeback-Checkliste, B2B-Briefentwurf und gespeicherte xTool-SVGs. Die Vorlagen sind ausdrücklich keine normkonformen ZUGFeRD-/XRechnungen, offiziellen GRA-Zertifikate, DATEV-Buchungsstapel oder Chargeback-Beweise.
 - **Guthaben-, Bonus- & Gratisprodukt-Tresor:** `CapturedReward` hält pro Shop zehn Vorteilsarten mit Schätzwert, tatsächlichem Eingang, Nachweis, Link/Code, Anfrageentwurf und Status (Prüfung → geprüft → beantragt → erhalten). Der Chancen-Assimilator nutzt eine lokale Stichwort-Zuordnung; Links werden nicht abgerufen. Der Cron-Lauf (`/api/cron?job=silent-revenue-sweep`) erzeugt nur aus lokalen Bank-CSV-Gebührenabweichungen unverifizierte Prüffälle. Versand-, Anbieter-, Förder-, Werbe-, Affiliate-, Edelmetall-, Muster- und Sponsoring-Konten sind nicht verbunden; der Lauf stellt dort keine Ansprüche fest und versendet/beantragt nichts.
 - Der Export erhaltener Vorteile ist eine shop-authentifizierte CSV-Prüfliste für den Steuerberater, **kein DATEV-Buchungsstapel**. Der Status „erhalten“ dokumentiert die Händlerbestätigung; Steuerart, Kontierung und mögliche Umsatzsteuer bleiben offen und werden nicht automatisch gebucht.
-- Firmenlogo-Feld `ShopSettings.invoiceLogoBase64` und `VaultDocument` sind Zielmodelle; zum Auditzeitpunkt nicht im Schema nachgewiesen.
+- `ShopSettings` speichert Logo, Brand-Farben, Stil, Grußformel und verschlüsselte Bankdaten. Ein separates `VaultDocument`-Dateispeichermodell gibt es nicht; PDFs/ZIPs werden aus vorhandenen Quelldaten bei Abruf generiert.
 
 ### Content, Haus-KI und Marktplätze
 
@@ -148,7 +149,7 @@ Vorgesehener Überlebens-Watchdog: Latenz, RAM, DB-Verfügbarkeit und API-Quoten
 ### Persistenz und Backups
 
 - Render-Dateisystem ist als flüchtig zu behandeln.
-- Vorgesehen sind `VaultDocument` für PDFs/SVGs/Belege und `ShopSettings.invoiceLogoBase64` für Logos. Binäre Base64-Ablage benötigt Größen-, Verschlüsselungs-, Zugriff-, Aufbewahrungs- und Quotenprüfung. Diese Modelle waren im zuletzt geprüften Prisma-Schema nicht vorhanden.
+- `ShopSettings.invoiceLogoBase64` ist vorhanden; der Upload ist auf PNG/JPEG und 350 KB begrenzt. Bankdaten werden AES-256-GCM-verschlüsselt; `BRAND_SETTINGS_ENCRYPTION_KEY` muss als 32-Byte-Schlüssel gesetzt und gesichert werden. Ein separates `VaultDocument`-Modell für dauerhafte PDF-/SVG-Ablage ist nicht vorhanden.
 - Tägliches komprimiertes JSON-/Konfigurationsbackup und Neon Point-in-Time-Restore sind Ziele. Backups dürfen nicht nur als `BackupLog`-Zeile mit Pfad/Größe protokolliert werden; tatsächliche Erstellung und Restore müssen getestet werden.
 
 ### Render Docker Service
@@ -299,7 +300,7 @@ Diese Reihenfolge ist ein Zielplan; sie ersetzt keine erfolgreiche technische od
 - `Dockerfile`: `node:22-alpine`, installiert OpenSSL, `npm ci --omit=dev`, `npm run build`, Start über `npm run docker-start`. Kein Multi-Stage-Build und kein `NODE_OPTIONS`.
 - `package.json`: `start` und `docker-start`, aber kein `start:prod`.
 - `api.cron.ts`: Token-Mindestlänge 16, Query-Secret oder Bearer; Heartbeat-Ausführung ohne garantierte Gesamtdeadline unter zwei Sekunden.
-- `shopify.app.toml`: `application_url` und Redirect zeigen auf `example.com`; Webhook-URI `/webhooks` relativ; Sidekick-Zusammenfassung mit fehlerhafter Zeichenkodierung. TOML-Version `2026-10`, SDK verwendet `ApiVersion.July26`.
+- `shopify.app.toml`: `application_url` und Redirect zeigen auf `example.com`; Webhook-URI `/webhooks` relativ; Sidekick-Zusammenfassung mit fehlerhafter Zeichenkodierung. TOML und Shopify SDK verwenden jetzt Admin API `2026-10`.
 - `.gitignore`: `.env`, `.env.*`, `node_modules` und einige konkrete DB-/Build-Pfade ignoriert; kein vollständiger `*.sqlite*`-/`*.db*`-Schutz und keine `.env.example`-Ausnahme.
 - Media: `sharp` und `ffmpeg-static` sind Abhängigkeiten, im App-Code wurde bei der Suche keine echte Medienverarbeitung gefunden; Sidekick-Antwort war Platzhalter.
 - `/` hat einen einfachen Login-/Landing-Loader; kein dedizierter Health-Endpunkt und keine aktuelle HTTP-Laufzeitprüfung.
@@ -404,7 +405,7 @@ Der App-Store-Check ist inzwischen von 19 auf 27 Kriterien erweitert worden. Gr�
 
 - Verdienst- und Mail-Agentennummern wurden laut Cline gegen die Agentenliste korrigiert (unter anderem #44 Prüfmail, #57 Gravur, #27 § 11-Prüfer). Diese Zuordnung steht noch nicht in `FERTIG_LESEN.md`.
 - Doppelbuchungsschutz nutzt laut Bericht `referenceId` mit dem Präfix `order:<Name>`. Die Funktion hängt damit an dieser Referenzbildung; keine Änderung darf sie unbeabsichtigt variieren.
-- Die aktuelle Code-Struktur lautet 26 Abteilungen, 220 Stammagenten (#1–#220), dynamische Agenten ab #221. Die separate Meta-Aufsicht #000 wird nicht in `STAMM_COUNT` eingerechnet.
+- Die aktuelle Code-Struktur lautet 26 Abteilungen, 232 Kernprofile (#1–#232), 100 Apex-Profile (#301–#400) und neue dynamische Agenten ab #401. #000 ist eine separate Owner-only Meta-Aufsicht. Bestehende dynamische IDs bis #400 benötigen vor dem Produktivstart die Nummernmigration.
 - Die von Cline berichtete aktuelle Preisstaffel ist Core 0 €, Module 1–6 zu 14,90 €, 19,90 €, 19,90 €, 24,90 €, 24,90 € und 29,90 € pro Monat, All-in-One 79,90 € pro Monat; Jahrespreis mit zwei Monaten gratis, 10 % Bündelrabatt ab zwei und 20 % ab drei Modulen sowie 14 Tage Test. Frühere Zielvorgaben von 249,90 €/2.499 € weichen davon ab; Produkt- und Marketingangaben müssen sich an einem bewusst festgelegten realen Tarif orientieren.
 - Frühere Abschnitte von `FERTIG_LESEN.md` sind teilweise überholt, insbesondere der Hinweis auf ein noch fehlendes Geschenkformular. Cline empfiehlt, sie zu bereinigen, damit die Übergabe nicht widersprüchlich ist.
 
@@ -428,7 +429,7 @@ Diese Sektion beschreibt die Copilot-Codeänderungen vom 23.11.2026 nach der obi
 - **#000 Meta-Supervisor:** `selectOptimalFreeModel` wählt den expliziten OpenRouter-Free-Router (`openrouter/free`), wenn ein Schlüssel gesetzt ist; sonst ist der Modus `local-rules`. `runMetaSupervisorAudit` protokolliert Ergebnis und Modus und wird für Aufrufe der vier Vorstandsagenten, wöchentliche Skilländerungen und neue dynamische Agenten verwendet. Die externe Prüfung erhält nur Agenten-/Aufgaben-Metadaten, keine Kundeninhalte. Sie ist eine zusätzliche Governance-Prüfung, keine echte Modell-zu-Modell-Prüfung einer generierten Geschäftsantwort, weil der bestehende Agentenlauf selbst kein generatives Entscheidungsmodell betreibt. Bei nicht erreichbarem OpenRouter wird `REVIEW` statt eines stillen Pass zurückgegeben.
 - **Inhaber-Puls:** Drei Sätze werden deterministisch aus Erfolgsprotokollen, offenen Freigaben, echten internen Zuordnungen und Pausenstatus erzeugt und im Dashboard sowie Monitor angezeigt. Euro-Zuordnungen werden ausdrücklich nicht als zusätzlicher Shopumsatz bezeichnet.
 - **Shop-Pause:** `GLOBAL_AI_PAUSE` wird je Shop in `CompanyRule` gespeichert und verändert `DRY_RUN_MODE` nicht. Sie wird beim Agentenlauf, Sidekick-Dispatcher, Freigabe-Ausführung, Evolutions-/Agentenerstellung, Mailversand und IMAP-/Cron-Verarbeitung geprüft. Shopify-Core-Webhooks werden dadurch nicht abgeschaltet.
-- **ROI-Wächter:** Nach mindestens fünf erfolgreichen Live-Ausführungen eines dynamischen Agenten innerhalb von 30 Tagen ohne zugeordnete Echt-Buchung wird der Agent bei einem Evolutionslauf auf `PAUSED` gesetzt und protokolliert. Das gilt nicht für die 220 Stammagenten und misst keine Arbeitszeitersparnis; fehlende Umsatzattribution kann deshalb zu einer falschen Pausierung führen. Reaktivierung bleibt über den bestehenden Statuspfad möglich.
+- **ROI-Wächter:** Nach mindestens fünf erfolgreichen Live-Ausführungen eines dynamischen Agenten innerhalb von 30 Tagen ohne zugeordnete Echt-Buchung wird der Agent bei einem Evolutionslauf auf `PAUSED` gesetzt und protokolliert. Das gilt nicht für die 332 festen Profile und misst keine Arbeitszeitersparnis; fehlende Umsatzattribution kann deshalb zu einer falschen Pausierung führen. Reaktivierung bleibt über den bestehenden Statuspfad möglich.
 - **Onboarding:** Nicht-Inhaber sehen bei fehlendem `onboarding_complete` den dreistufigen Schnellstart. Auswahl und Abschluss werden shopbezogen als `CompanyRule` gespeichert; beim Neukunden wird Dry-Run aktiviert. Das „Testlauf“-Protokoll führt keine Shopify-Mutation und keine Billing-Buchung aus. Der Inhaber behält sein Cockpit und kann den Wizard optional öffnen.
 - **Pause und Historie:** Dashboard und Monitor haben einen Notfall-Schalter sowie die letzten 20 Protokolleinträge. Undo ist ausschließlich für erfolgreiche interne `sync_orders`-Protokolle aktiviert und markiert den Eintrag als `undone`; es ist ausdrücklich kein Rollback externer Shopify- oder Marktplatzänderungen. Andere Aktionen zeigen keinen Undo-Schalter.
 - **Öffentliche Seiten:** `/privacy` und `/support` enthalten nun deutsche und englische Hinweise. Die Datenschutzseite beschreibt aktuelle Grenzen und behauptet weder eine 48-Stunden-Löschung noch eine vollständige Rechtskonformität. Sie ersetzt kein vollständiges Impressum: vollständiger rechtlicher Betreibername, ladungsfähige Anschrift, direkte Datenschutz-/Support-Kontaktdaten und bestätigte Hosting-/Aufbewahrungsangaben fehlen.
@@ -468,11 +469,29 @@ Telefonnummer, gegebenenfalls Register-/Vertretungsangaben, Datenschutzbeauftrag
 - Die Plattformübersicht enthält Portalverweise und lokale DE/EN-Entwickleranfrage-Entwürfe. Der tatsächliche Developer-Korrespondent im Roster ist #202 (nicht #187). Für Plattformen ohne implementierten Adapter werden weder „verbunden“ noch erfolgreiche Verbindungstests behauptet.
 - Werkstattentwürfe können in einer shopbezogenen `localStorage`-Warteschlange vorgemerkt und manuell ins vorhandene Formular geladen werden. Die Daten liegen unverschlüsselt im jeweiligen Browser, werden nicht automatisch synchronisiert und sollen keine personenbezogenen Daten enthalten.
 - Neue Fachgebiets-Agenten aus der Oberfläche werden zunächst als Kandidaten angelegt; sie starten nicht automatisch. Skill-Rollbacks bleiben auf die vorhandenen Evolutionsdatensätze begrenzt.
-- Individuelle PDF-/DATEV-/Chargeback-/DPP-Downloads und der Brand-Customizer sind weiterhin nicht implementiert: `VaultDocument` und `ShopSettings` fehlen im Prisma-Schema, und die vorhandenen Datensätze enthalten nicht alle für rechtlich korrekte Dokumente erforderlichen Quelldaten. Vorhandene xTool-Tagespakete bleiben über den authentifizierten ZIP-Endpunkt verfügbar. Keine Platzhalterdatei wird als echter Beleg ausgegeben.
+- Individuelle PDF-/ZIP-Downloads und der Brand-Customizer sind ergänzt. Die Quelldaten reichen ausdrücklich nicht für normkonforme Rechnungen, offizielle Zertifikate oder Beweisunterlagen; Downloads sind daher gekennzeichnete Datensatzentwürfe/Vorlagen. Ein separates `VaultDocument`-Modell und dauerhafte Dateiablage gibt es nicht.
 
 ## 20. Prisma-Datasource auf PostgreSQL umgestellt
 
 - `prisma/schema.prisma` verwendet jetzt `provider = "postgresql"` und `url = env("DATABASE_URL")`.
 - `.env.example` und `scripts/ensure-env.mjs` enthalten einen lokalen PostgreSQL-Beispielwert; `render.yaml` erwartet `DATABASE_URL` als extern gesetztes Geheimnis.
 - Damit ist nur der Prisma-Client-/Schema-Provider umgestellt. Es wurde keine Datenbank bereitgestellt, kein SQLite-Datenbestand migriert und kein `prisma db push` oder Cloud-Deploy ausgeführt. Vor dem Start ist `DATABASE_URL` auf eine erreichbare PostgreSQL-Instanz zu setzen und ein geprüfter Backup-/Migrations-/Restore-Ablauf erforderlich.
+
+## 21. 7-Ansichten-Dashboard und Apex-Rollenprofile
+
+- Die Dashboard-Navigation hat sieben URL-gespeicherte Ansichten unter `?view=...`; alte `?tab=...`-Links werden weiter auf passende Ansichten abgebildet. Der reine Ansichtswechsel lädt die Shopdaten nicht erneut.
+- Der Fertig-Tisch, die Platine, Teamübersicht, Prüfzentrum, Tresor und Plattform-/Baukastenansicht sind getrennte Seitenbereiche. Notfallpause bleibt auf jeder Ansicht erreichbar. Audio nutzt die lokale Browser-Sprachausgabe; die 60-Sekunden-Show präsentiert einen festen Snapshot und ist kein Live-Stream.
+- #221–#232 sind registrierte Rollenprofile und bleiben serverseitig für autonome Ausführung gesperrt. Interne Agentenmetriken (Note, Trend, XP, Rang, Akademie-Status) sind als Heuristik implementiert; sie bewirken keine Beförderung, Rollback oder fachliche Zertifizierung. #221–#225 können manuelle Review-Schritte in einem SHA-256-verketteten Prisma-Ledger protokollieren. Dieses Ledger ist nicht extern verankert oder physisch unveränderlich und trifft keine automatischen Rechtsentscheidungen.
+- Die Platine bietet Sektorfilter. Linien bleiben statisch, weil kein verlässliches Live-Job-Event-Modell existiert. Für neue Rollen wird keine Kostenfreiheit garantiert; Hosting- und Drittanbieter-Kosten hängen von der realen Konfiguration ab.
+
+## 22. Agentenmetriken, manuelles Review-Ledger und Tresor
+
+- Metriken werden shopbezogen aus echten `AgentRevenueEntry`-Buchungen (`isSimulated=false`), `AgentSkillEvolution`-Scores und entschiedenen Freigaben aggregiert. Ohne Evidenz bleibt die Note leer.
+- Der Leistungs-Score ist der gleichgewichtete Mittelwert der verfügbaren Dimensionen: Erfolgsquote entschiedener Freigaben, mittlerer Evolutions-Score und Vorzeichen des Netto-Echtverdienstes. Die Abbildung lautet `Note = round1(6 - 5 * Score)`. Potenzial/Dry-Run zählt nicht als echte Einnahme.
+- Der Trend vergleicht die letzten 30 Tage mit den vorangegangenen 30 Tagen; ab einer Differenz von 0,05 wird ▲/▼ angezeigt, sonst ►. Mangels `resolvedAt` werden Freigaben nach `createdAt` zeitlich eingeordnet.
+- XP: genehmigte Freigabe +25, abgelehnte +5, Evolution +10, echte Buchung +10. Rangschwellen: 0/100/250/500/1.000/2.000 XP. Akademie-Status: interne Heuristik (zertifiziert ab 10 Ereignissen und Note ≤2,0; Nachschulung ab 5 Ereignissen und Note ≥3,5; sonst Lernphase), keine formale Fach-/Personalzertifizierung.
+- `JudicialDecisionLedger` erzwingt manuelle Prüfschritte #221–#225 in Folge und verkettet Datensätze per SHA-256 unter serieller Transaktion. Die Prüfschritte sind nicht bindend; die Kette ist nicht extern verankert und erkennt keine entfernte Schluss-Sequenz.
+- `ShopSettings` enthält das Logo (PNG/JPEG bis 350 KB), Farben, Stil, Grußformel und AES-256-GCM-verschlüsselte Bankangaben. Für die Entschlüsselung ist `BRAND_SETTINGS_ENCRYPTION_KEY` mit 32 Byte erforderlich. Schlüsselverlust macht vorhandene Bankdaten unlesbar.
+- Tresor-PDFs/ZIPs entstehen auf Abruf aus vorhandenen Daten. Das Steuerberater-Paket enthält höchstens 500 neueste Datensätze je Liste und begrenzte, unverifizierte gespeicherte XML-/DATEV-Felder. Es ist kein DATEV-Buchungsstapel; das Rechnungsdatenblatt ist keine normkonforme ZUGFeRD-/XRechnung/PDF-A-3-Rechnung, das DPP-Dossier kein offizielles GRA-Zertifikat und die Chargeback-Datei eine leere Checkliste.
+- Neue Prisma-Modelle sind generiert, aber nicht in eine Datenbank gepusht: lokale `DATABASE_URL` fehlt. Vor Nutzung in PostgreSQL erst Datenbankziel und Backup bestätigen, dann Schema-Deployment durchführen.
 

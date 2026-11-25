@@ -1,10 +1,10 @@
 import db from "../db.server";
-import { STAMM_COUNT } from "./agent-roster";
+import { STAMM_NUMBER_FLOOR } from "./agent-roster";
 import { isOwnerShop } from "./ai-agents.server";
 import { isShopPaused } from "./autopilot-control.server";
 import { runMetaSupervisorAudit } from "./meta-supervisor.server";
 
-/** Nischen-Katalog der Agenten-Fabrik (0 € Betrieb: lokale Heuristik, keine kostenpflichtige API). */
+/** Nischen-Katalog der Agenten-Fabrik; lokale Heuristik ohne externe Modell-API. */
 const NICHE_SEEDS: { name: string; dept: number; mission: string; mechanism: string; value: number; price: number }[] = [
   { name: "Trauring-Gravur-Nische", dept: 20, mission: "Gravierte Trauringe als eigene Nische ausbauen", mechanism: "Zusatzumsatz durch Nischenprodukt", value: 180, price: 9.9 },
   { name: "Taufschmuck-Scout", dept: 11, mission: "Taufgeschenke saisonal bewerben", mechanism: "Saisonale Nachfrage", value: 120, price: 4.9 },
@@ -20,10 +20,10 @@ export async function nextAgentNumber(shop: string): Promise<number> {
     orderBy: { agentNumber: "desc" },
     select: { agentNumber: true },
   });
-  return Math.max(STAMM_COUNT, last?.agentNumber ?? STAMM_COUNT) + 1;
+  return Math.max(STAMM_NUMBER_FLOOR, last?.agentNumber ?? STAMM_NUMBER_FLOOR) + 1;
 }
 
-/** Erschafft einen neuen KI-Mitarbeiter ab #221 (CANDIDATE; ACTIVE nur ohne Zusatzpreis oder für Inhaber). */
+/** Erschafft einen neuen KI-Mitarbeiter ab #401 (CANDIDATE; ACTIVE nur ohne Zusatzpreis oder für Inhaber). */
 export async function spawnAgent(input: {
   shop: string;
   name: string;

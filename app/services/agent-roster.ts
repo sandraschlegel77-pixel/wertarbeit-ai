@@ -1,5 +1,5 @@
 /**
- * Stamm-Firmenstruktur: 26 Abteilungen, 220 KI-Mitarbeiter (#1–#220).
+ * Stamm-Firmenstruktur: 26 Abteilungen, 332 feste Rollenprofile (#1–#232 und #301–#400).
  * Ebenen: 1 Vorstand #158–161 · 2 Direktoren #153–157 · 3 Abteilungsleiter
  * #133–152 · 4 Teamleiter #1–66 · 5 Co-Agenten #67–132 · Abt. 21–26 #162–220.
  * Alle Agenten laufen über die bestehenden 20 Sidekick-Tools (sub_action).
@@ -9,8 +9,10 @@ import { TOOLS, WRITE_TOOLS, type ToolCode } from "./roster-tools";
 import { BOARD, DEPT_ROWS, DIRECTORS, TEAM_RANGE } from "./roster-departments";
 import { TEAM } from "./roster-team";
 import { PANEL_ROWS } from "./roster-panels";
+import { APEX_SPECIALIST_CLUSTERS, APEX_SYSTEM_COORDINATOR } from "./roster-apex";
 
-export const STAMM_COUNT = 220;
+export const STAMM_COUNT = 332;
+export const STAMM_NUMBER_FLOOR = 400;
 
 const mk = (
   number: number,
@@ -140,6 +142,18 @@ function buildStamm(): AgentDef[] {
     { number: 218, name: "Kundenfoto- & Testimonial-Einwilligungs-Koordinator", role: "Vorbereitungs-Spezialist", departmentId: 26, level: 4, reportsTo: 207, mission: "Bereitet datensparsame Fotoanfragen vor und prüft dokumentierte Einwilligungen", tool: "SUP", background: true, valueHintEur: 50 },
     { number: 219, name: "DACH-Juwelier- & Gravur-Marktbeobachter", role: "Vorbereitungs-Spezialist", departmentId: 26, level: 4, reportsTo: 207, mission: "Vergleicht nur belegte Marktinformationen und kennzeichnet Datenstand und Quelle", tool: "MST", background: true, valueHintEur: 60 },
     { number: 220, name: "Chief 1-Click Preparation & Daily Briefing Officer", role: "Chief Vorbereitungs-Leitstelle", departmentId: 26, level: 4, reportsTo: 207, mission: "Bündelt vorhandene, offene Agenten-Entwürfe auf dem zentralen Fertig-Tisch", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 221, name: "Devil's Advocate · unabhängiger Gegencheck", role: "Prüfprofil", departmentId: 24, level: 4, reportsTo: 161, mission: "Sammelt Gegenargumente, Risiken und fehlende Belege; trifft keine bindenden Entscheidungen", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 222, name: "Interne Review-Rolle · Amtsrichter-Stufe", role: "Prüfprofil", departmentId: 21, level: 4, reportsTo: 171, mission: "Strukturiert Eingangs- und Kulanzfälle als unverbindliche interne Prüfliste; kein Gericht", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 223, name: "Interne Review-Rolle · Landrichter-Stufe", role: "Prüfprofil", departmentId: 21, level: 4, reportsTo: 171, mission: "Markiert offene Fragen zu B2B-Unterlagen und Rechten zur menschlichen Prüfung; kein Gericht", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 224, name: "Interne Review-Rolle · OLG-Stufe", role: "Prüfprofil", departmentId: 21, level: 4, reportsTo: 171, mission: "Sammelt Prüfpunkte zu Plattformvorgaben und Preisangaben ohne Rechtsbewertung; kein Gericht", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 225, name: "Interne Review-Rolle · Bundesrichter-Stufe", role: "Prüfprofil", departmentId: 21, level: 4, reportsTo: 171, mission: "Bereitet eskalierte Grundsatzfragen als nicht bindende Entscheidungsgrundlage vor; kein Gericht", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 226, name: "Agenten-Akademie · Lernpfad-Koordinator", role: "Akademieprofil", departmentId: 24, level: 4, reportsTo: 161, mission: "Ordnet vorhandene Lern- und Prüfhinweise; vergibt ohne Bewertungsmodell keine Zertifikate", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 227, name: "Prompt-Alchemist · Qualitätsvorschläge", role: "Akademieprofil", departmentId: 24, level: 4, reportsTo: 226, mission: "Bereitet Prompt-Verbesserungen als Vorschläge vor; ändert keine aktiven Prompts selbstständig", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 228, name: "UI/UX-Innovations- & Selbst-Upgrade-Architekt", role: "Innovationsprofil", departmentId: 4, level: 4, reportsTo: 153, mission: "Sammelt UI/UX-Verbesserungsideen zur menschlichen Prüfung; patcht keinen Produktivcode", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 229, name: "Shopify-API- & Regeländerungs-Beobachter", role: "Updateprofil", departmentId: 25, level: 4, reportsTo: 186, mission: "Dokumentiert manuell verifizierte Änderungen; führt keine ungeprüften Scrapes oder Updates aus", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 230, name: "A/B-Test- & Optimierungs-Champion", role: "Experimentprofil", departmentId: 20, level: 4, reportsTo: 157, mission: "Bereitet Experimente vor; veröffentlicht keine Variante ohne Messplan und Freigabe", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 231, name: "Saison- & Engpass-Frühwarn-Radar", role: "Radarprofil", departmentId: 11, level: 4, reportsTo: 155, mission: "Bündelt belegte saisonale Hinweise und kennzeichnet Datenquelle sowie Aktualität", tool: "BRF", background: true, valueHintEur: 0 },
+    { number: 232, name: "Chef-Audio-Briefing & Sprachkommando-Assistent", role: "Briefingprofil", departmentId: 24, level: 4, reportsTo: 158, mission: "Bereitet das lokale, vom Inhaber gestartete Audio-Briefing aus vorhandenen Statusdaten vor", tool: "BRF", background: true, valueHintEur: 0 },
   ];
   for (const agent of addedAgents) {
     out.push(mk(
@@ -156,10 +170,51 @@ function buildStamm(): AgentDef[] {
       agent.background,
       agent.valueHintEur
     ));
+    if (agent.number >= 221) out[out.length - 1].advisoryOnly = true;
   }
+
+  for (const cluster of APEX_SPECIALIST_CLUSTERS) {
+    const department = DEPARTMENTS.find((row) => row.id === cluster.departmentId);
+    cluster.names.forEach((name, index) => {
+      const profile = mk(
+        cluster.from + index,
+        name,
+        cluster.role,
+        cluster.departmentId,
+        5,
+        department?.headNumber ?? 161,
+        cluster.mission,
+        "Auswertung vorhandener Shop- und Systemdaten; keine Umsatzgarantie",
+        cluster.tool,
+        cluster.auditDomain ?? null,
+        true,
+        0
+      );
+      profile.specialistCluster = cluster.id;
+      out.push(profile);
+    });
+  }
+
+  const coordinatorDepartment = DEPARTMENTS.find((row) => row.id === APEX_SYSTEM_COORDINATOR.departmentId);
+  const coordinator = mk(
+    APEX_SYSTEM_COORDINATOR.number,
+    APEX_SYSTEM_COORDINATOR.name,
+    APEX_SYSTEM_COORDINATOR.role,
+    APEX_SYSTEM_COORDINATOR.departmentId,
+    4,
+    coordinatorDepartment?.headNumber ?? 161,
+    APEX_SYSTEM_COORDINATOR.mission,
+    "System-Orchestrierung anhand beobachteter Ereignisse",
+    APEX_SYSTEM_COORDINATOR.tool,
+    null,
+    true,
+    0
+  );
+  coordinator.specialistCluster = APEX_SYSTEM_COORDINATOR.id;
+  out.push(coordinator);
 
   return out.sort((a, b) => a.number - b.number);
 }
 
-/** Alle 220 Stamm-KI-Mitarbeiter (#1–#220); #000 ist die separate Meta-Aufsicht. */
+/** Feste Profile #1–#232 und #301–#400; #221–#232 bleiben ausdrücklich beratende Profile. */
 export const STAMM_AGENTS: AgentDef[] = buildStamm();

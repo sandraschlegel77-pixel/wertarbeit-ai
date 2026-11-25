@@ -1,11 +1,53 @@
 import { useState } from "react";
 import { C } from "./theme";
 import { DEPARTMENTS } from "../../services/agent-roster";
+import type { AgentDef, AgentPerformanceSnapshot, DepartmentDef, EarningsSummary } from "../../services/agent-types";
+import { DEPARTMENT_MODULES } from "../../services/module-access";
+import type { LiveConnectionTraceDto } from "../../services/live-connection.server";
+import { LiveOrganization } from "./LiveOrganization";
 import { BoardChips, CoreProcessor, DirectorChips, ExpansionSector, MetaSupervisorChip, OwnerBridge } from "./CircuitParts";
 
 interface Props {
   dynamicCount: number;
   ownerShop: boolean;
+  roster: AgentDef[];
+  earnings: EarningsSummary;
+  performance: AgentPerformanceSnapshot;
+  allowedDepartmentIds: number[];
+  legalRules: {
+    id: string;
+    ruleKey: string;
+    jurisdiction: string;
+    sourceUrl: string;
+    sourceTitle: string;
+    sourceHash: string;
+    verifiedAt: string;
+    reviewStatus: string;
+  }[];
+  capabilities: {
+    id: string;
+    domainKey: string;
+    displayName: string;
+    feasibility: string;
+    sourceUrl: string | null;
+    sourceTitle: string | null;
+    evidenceSummary: string;
+    verifiedAt: string | null;
+    expiresAt: string | null;
+    estimatedCostEur: number | null;
+    riskLevel: string;
+    isVerified: boolean;
+  }[];
+  bindings: {
+    id: string;
+    agentKey: string;
+    interfaceKey: string;
+    status: string;
+    lastVerifiedAt: string | null;
+    createdAt: string;
+    isNewlySpawnedInterface: boolean;
+  }[];
+  initialTraces: LiveConnectionTraceDto[];
   onPickDept: (id: number) => void;
   onSelectModule: (moduleId: string) => void;
   executivePulse: string[];
@@ -13,31 +55,12 @@ interface Props {
 
 const W = 1440;
 const H = 790;
-const DEPT_MODULES: Record<number, string[]> = {
-  1: ["m1"],
-  2: ["m1"],
-  3: ["m1"],
-  4: ["m1"],
-  5: ["m5"],
-  6: ["m1"],
-  7: ["m4"],
-  9: ["m2"],
-  11: ["m6"],
-  12: ["m2"],
-  13: ["m2"],
-  14: ["m3"],
-  15: ["m3"],
-  17: ["m3", "m5"],
-  18: ["m3"],
-  19: ["m2"],
-  20: ["m6"],
-  21: ["m2"],
-  22: ["m2"],
-  23: ["m5"],
-  25: ["m4"],
-  26: ["m5", "m6"],
-};
-
+const KIND_FILTERS: { id: DepartmentDef["kind"]; label: string; color: string }[] = [
+  { id: "core", label: "Core", color: C.emerald },
+  { id: "panel", label: "Prüfgremien", color: C.red },
+  { id: "armada", label: "Armadas", color: C.gold },
+  { id: "harmony", label: "Orchestrierung", color: C.champagne },
+];
 /** Position der 26 Abteilungs-Chips: Abt. 1–20 in Gruppen, Abt. 21–26 als Gremien- und Armadareihe. */
 function deptPos(id: number): { x: number; y: number } {
   if (id <= 20) {
@@ -49,16 +72,33 @@ function deptPos(id: number): { x: number; y: number } {
 }
 
 /** Interaktive Dark-Slate- & Champagner-Gold-Platine der gesamten Firma. */
-export function CircuitBoard({ dynamicCount, ownerShop, onPickDept, onSelectModule, executivePulse }: Props) {
+export function CircuitBoard({
+  dynamicCount,
+  ownerShop,
+  roster,
+  earnings,
+  performance,
+  allowedDepartmentIds,
+  legalRules,
+  capabilities,
+  bindings,
+  initialTraces,
+  onPickDept,
+  onSelectModule,
+  executivePulse,
+}: Props) {
   const [hover, setHover] = useState<number | null>(null);
   const [compact, setCompact] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [visibleKinds, setVisibleKinds] = useState<Set<DepartmentDef["kind"]>>(
+    () => new Set(KIND_FILTERS.map((filter) => filter.id))
+  );
   const [selectedInfo, setSelectedInfo] = useState<{
     title: string;
     description: string;
     x: number;
     y: number;
-    modules: string[];
+    modules: readonly string[];
   } | null>(null);
 
   return (
@@ -78,7 +118,9 @@ export function CircuitBoard({ dynamicCount, ownerShop, onPickDept, onSelectModu
         <svg
           viewBox={`0 0 ${W} ${H}`}
           role="group"
-          aria-label="Firmen-Platine: Inhaber, Meta-Supervisor, fünf Vorstände, Direktoren, 26 Abteilungen und Expansions-Sektor ab Nummer 221"
+          aria-label={ownerShop
+            ? "Firmen-Platine: Inhaber, Meta-Supervisor, fünf Vorstände, 26 Abteilungen, Apex-Profile bis 400 und KI-Fabrik ab 401"
+            : "Übersicht der gebuchten Fachbereiche"}
           style={{ width: compact ? "100%" : `${W * zoom}px`, height: "auto", display: "block", borderRadius: 14 }}
         >
           <defs>
@@ -93,40 +135,60 @@ export function CircuitBoard({ dynamicCount, ownerShop, onPickDept, onSelectModu
           <rect width={W} height={H} fill={C.slate} />
           <rect width={W} height={H} fill="url(#apGrid)" />
 
-          <g fill="none" strokeWidth="2.2" strokeLinecap="round">
-            <path className="ap-trace" stroke={C.gold} d="M600 70 V82 M600 127 V132" />
+          {ownerShop && <g fill="none" strokeWidth="2.2" strokeLinecap="round">
+            <path stroke={C.gold} d="M600 70 V82 M600 127 V132" />
             {[0, 1, 2, 3, 4].map((i) => (
-              <path key={i} className="ap-trace" stroke={C.gold} d={`M600 132 H${330 + i * 180} V140`} />
+              <path key={i} stroke={C.gold} d={`M600 132 H${330 + i * 180} V140`} />
             ))}
             {[0, 1, 2, 3, 4].map((i) => (
-              <path key={i} className="ap-trace" stroke={C.emerald} d={`M600 200 V225 H${116 + i * 232} V255`} />
+              <path key={i} stroke={C.emerald} d={`M600 200 V225 H${116 + i * 232} V255`} />
             ))}
-            {DEPARTMENTS.filter((d) => d.id <= 20).map((d) => {
+            {DEPARTMENTS.filter((d) => d.id <= 20 && visibleKinds.has(d.kind)).map((d) => {
               const p = deptPos(d.id);
               const gx = 116 + Math.floor((d.id - 1) / 4) * 232;
-              return <path key={d.id} className="ap-trace" stroke={C.emerald} opacity="0.7" d={`M${gx} 295 V${p.y} H${p.x + 46}`} />;
+              return <path key={d.id} stroke={C.emerald} opacity="0.7" d={`M${gx} 295 V${p.y} H${p.x + 46}`} />;
             })}
-            {DEPARTMENTS.filter((d) => d.id > 20).map(({ id }) => {
+            {DEPARTMENTS.filter((d) => d.id > 20 && visibleKinds.has(d.kind)).map(({ id }) => {
               const p = deptPos(id);
-              return <path key={id} className="ap-trace" stroke={C.gold} opacity="0.6" d={`M600 225 V490 H${p.x + 110} V${p.y}`} />;
+              return <path key={id} stroke={C.gold} opacity="0.6" d={`M600 225 V490 H${p.x + 110} V${p.y}`} />;
             })}
-            <path className="ap-trace" stroke={C.gold} d="M730 642 H860" />
-            <path className="ap-trace" stroke={C.emerald} d="M600 592 V572" />
-          </g>
+            <path stroke={C.gold} d="M730 642 H860" />
+            <path stroke={C.emerald} d="M600 592 V572" />
+          </g>}
+          {!ownerShop && (
+            <g fill="none" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round" opacity="0.75">
+              <text x="720" y="115" textAnchor="middle" fill={C.champagne} stroke="none" fontSize="16" fontWeight="700">
+                Gebuchte Fachbereiche · {allowedDepartmentIds.length}
+              </text>
+              {DEPARTMENTS.filter((department) =>
+                allowedDepartmentIds.includes(department.id) && visibleKinds.has(department.kind)
+              ).map((department) => {
+                const p = deptPos(department.id);
+                const wide = department.id > 20;
+                return <path key={department.id} d={`M720 135 V${p.y - 12} H${p.x + (wide ? 110 : 46)}`} />;
+              })}
+            </g>
+          )}
 
-          <OwnerBridge ownerShop={ownerShop} />
-          <MetaSupervisorChip />
-          <BoardChips />
-          <DirectorChips />
+          {ownerShop && (
+            <>
+              <OwnerBridge ownerShop={ownerShop} />
+              <MetaSupervisorChip />
+              <BoardChips />
+              <DirectorChips />
+            </>
+          )}
 
-          {DEPARTMENTS.map((d) => {
+          {DEPARTMENTS.filter((d) =>
+            visibleKinds.has(d.kind) && allowedDepartmentIds.includes(d.id)
+          ).map((d) => {
             const p = deptPos(d.id);
             const gold = d.kind === "armada" || d.kind === "panel" || d.kind === "harmony";
             const wide = d.id > 20;
             const label = d.name.length > 20 ? `${d.name.slice(0, 19)}…` : d.name;
             const cx = p.x + (wide ? 110 : 46);
             const infoX = p.x + (wide ? 205 : 78);
-            const modules = DEPT_MODULES[d.id] ?? [];
+            const modules = DEPARTMENT_MODULES[d.id] ?? [];
             return (
               <g
                 key={d.id}
@@ -171,13 +233,22 @@ export function CircuitBoard({ dynamicCount, ownerShop, onPickDept, onSelectModu
             );
           })}
 
-          <CoreProcessor />
-          <ExpansionSector count={dynamicCount} />
-          <rect x="36" y="704" width="1368" height="76" rx="8" fill={C.slate2} stroke={C.gold} />
-          <text x="54" y="722" fontSize="10" fontWeight="700" fill={C.gold}>#000 INHABER-PUL</text>
-          {executivePulse.slice(0, 3).map((sentence, index) => (
-            <text key={index} x="54" y={740 + index * 13} fontSize="9" fill={C.text}>{sentence}</text>
-          ))}
+          {ownerShop && (
+            <>
+              <CoreProcessor />
+              <ExpansionSector count={dynamicCount} />
+              <rect x="36" y="704" width="1368" height="76" rx="8" fill={C.slate2} stroke={C.gold} />
+              <text x="54" y="722" fontSize="10" fontWeight="700" fill={C.gold}>#000 INHABER-PUL</text>
+              {executivePulse.slice(0, 3).map((sentence, index) => (
+                <text key={index} x="54" y={740 + index * 13} fontSize="9" fill={C.text}>{sentence}</text>
+              ))}
+            </>
+          )}
+          {!ownerShop && (
+            <text x="720" y="704" textAnchor="end" fontSize="10" fill={C.muted}>
+              Sichtbar sind nur Fachbereiche aus aktiven Modulen.
+            </text>
+          )}
         </svg>
         {selectedInfo && (
           <aside
@@ -213,6 +284,42 @@ export function CircuitBoard({ dynamicCount, ownerShop, onPickDept, onSelectModu
             )}
           </aside>
         )}
+      </div>
+      <div style={{ display: "grid", justifyItems: "end", gap: 6, marginTop: 8 }}>
+        <small style={{ color: C.muted }}>Übersichtsdiagramm · Live-Verbindungen darunter stammen ausschließlich aus protokollierten Ereignissen.</small>
+        <div role="group" aria-label="Platinensektoren filtern" style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 6 }}>
+          {KIND_FILTERS.map((filter) => {
+            const checked = visibleKinds.has(filter.id);
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                aria-pressed={checked}
+                onClick={() => setVisibleKinds((current) => {
+                  const next = new Set(current);
+                  if (next.has(filter.id)) next.delete(filter.id);
+                  else next.add(filter.id);
+                  return next;
+                })}
+                style={{ ...controlStyle, borderColor: filter.color, opacity: checked ? 1 : 0.5 }}
+              >
+                {checked ? "✓ " : ""}{filter.label}
+              </button>
+            );
+          })}
+        </div>
+        <LiveOrganization
+          owner={ownerShop}
+          roster={roster}
+          departments={DEPARTMENTS}
+          allowedDepartmentIds={allowedDepartmentIds}
+          earnings={earnings}
+          performance={performance}
+          legalRules={legalRules}
+          capabilities={capabilities}
+          bindings={bindings}
+          initialTraces={initialTraces}
+        />
       </div>
     </section>
   );

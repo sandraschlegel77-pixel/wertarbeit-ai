@@ -21,6 +21,15 @@ import {
   runSilentRevenueSweep,
   transitionCapturedReward,
 } from "./silent-revenue.server";
+import { JudicialLedgerInputError, appendJudicialDecision } from "./judicial-system.server";
+import { saveShopBrandSettings, ShopSettingsInputError } from "./shop-settings.server";
+import { ShopAccessDeniedError } from "./access-control.server";
+import { submitOwnerDirective } from "./owner-directive.server";
+import {
+  MarketplaceWishInputError,
+  setWorkspaceChannelVisibility,
+  submitSubscriberFeatureWish,
+} from "./marketplace-flywheel.server";
 
 import type { ShopifyAdmin } from "./admin-types";
 
@@ -46,6 +55,61 @@ async function upsertRule(shop: string, key: string, value: string) {
 export async function handleDashboardAction(opts: { shop: string; admin: Admin; form: FormData }) {
   const { shop, admin, form } = opts;
   const type = str(form, "type");
+  const ownerOnlyActions = new Set([
+    "judicial_record",
+    "add_rule",
+    "set_dry_run",
+    "set_global_pause",
+    "evolve_week",
+    "scan_niches",
+    "spawn_custom_agent",
+    "rollback_agent",
+    "activate_agent",
+  ]);
+  if (!isOwnerShop(shop) && ownerOnlyActions.has(type)) {
+    return { ok: false, message: "Diese interne Steuerungsaktion ist dem Inhaber-Shop vorbehalten." };
+  }
+
+  if (type === "owner_directive") {
+    try {
+      return await submitOwnerDirective(shop, str(form, "directive"));
+    } catch (error) {
+      if (error instanceof ShopAccessDeniedError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
+  if (type === "suggest_marketplace") {
+    try {
+      return await submitSubscriberFeatureWish(shop, {
+        title: str(form, "title"),
+        description: str(form, "description"),
+      });
+    } catch (error) {
+      if (error instanceof MarketplaceWishInputError || error instanceof ShopAccessDeniedError) {
+        return { ok: false, message: error.message };
+      }
+      throw error;
+    }
+  }
+  if (type === "set_workspace_channel_visibility") {
+    try {
+      const visible = str(form, "isVisible");
+      if (visible !== "true" && visible !== "false") {
+        return { ok: false, message: "Ungültiger Sichtbarkeitswert." };
+      }
+      await setWorkspaceChannelVisibility(shop, {
+        channelKey: str(form, "channelKey"),
+        displayName: str(form, "displayName"),
+        isVisible: visible === "true",
+      });
+      return { ok: true, message: "Cockpit-Sichtbarkeit gespeichert. Der Kanal wurde dadurch nicht verbunden." };
+    } catch (error) {
+      if (error instanceof MarketplaceWishInputError || error instanceof ShopAccessDeniedError) {
+        return { ok: false, message: error.message };
+      }
+      throw error;
+    }
+  }
 
   if (type === "reward_scan") {
     const result = await runSilentRevenueSweep(shop);
@@ -63,6 +127,63 @@ export async function handleDashboardAction(opts: { shop: string; admin: Admin; 
       });
     } catch (error) {
       if (error instanceof RewardInputError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
+  if (type === "save_shop_settings") {
+    try {
+      const upload = form.get("logoFile");
+      let logoDataUrl: string | undefined;
+      if (upload instanceof File && upload.size > 0) {
+        if (upload.size > 350_000 || !["image/png", "image/jpeg"].includes(upload.type)) {
+          return { ok: false, message: "Bitte ein PNG/JPEG-Logo mit höchstens 350 KB hochladen." };
+        }
+        const bytes = Buffer.from(await upload.arrayBuffer());
+        const validPng = upload.type === "image/png" && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+        const validJpeg = upload.type === "image/jpeg" && bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]));
+        if (!validPng && !validJpeg) return { ok: false, message: "Die Dateiinhalte passen nicht zu PNG oder JPEG." };
+        logoDataUrl = `data:${upload.type};base64,${bytes.toString("base64")}`;
+      }
+      return await saveShopBrandSettings(shop, {
+        businessName: str(form, "businessName"),
+        primaryColor: str(form, "primaryColor"),
+        accentColor: str(form, "accentColor"),
+        fontStyle: str(form, "fontStyle"),
+        tone: str(form, "tone"),
+        greeting: str(form, "greeting"),
+        logoDataUrl,
+        clearLogo: str(form, "clearLogo") === "1",
+        bankName: str(form, "bankName"),
+        iban: str(form, "iban"),
+        bic: str(form, "bic"),
+        clearBankDetails: str(form, "clearBankDetails") === "1",
+      });
+    } catch (error) {
+      if (error instanceof ShopSettingsInputError) return { ok: false, message: error.message };
+      throw error;
+    }
+  }
+  if (type === "judicial_record") {
+    try {
+      const stage = Number(str(form, "stage"));
+      const result = await appendJudicialDecision({
+        shop,
+        caseId: str(form, "caseId"),
+        stage,
+        caseTitle: str(form, "caseTitle"),
+        decision: str(form, "decision"),
+        rationale: str(form, "rationale"),
+        evidenceReference: str(form, "evidenceReference"),
+      });
+      return {
+        ok: true,
+        message: `Interner Ledger-Eintrag #${result.sequence} gespeichert. Fall-ID: ${result.caseId}`,
+        caseId: result.caseId,
+        stage: result.stage,
+        decision: result.decision,
+      };
+    } catch (error) {
+      if (error instanceof JudicialLedgerInputError) return { ok: false, message: error.message };
       throw error;
     }
   }

@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { runHeartbeat } from "../services/heartbeat.server";
 import { runDailyGoogleSheetsSync } from "../services/platform-connectors.server";
 import { runSilentRevenueSweepForAllShops } from "../services/silent-revenue.server";
+import { runStorageJanitor } from "../services/storage-janitor.server";
 
 /**
  * 24/7-Cloud-Cron-Endpunkt (0 €): ein externer Gratis-Pinger (z. B. cron-job.org, UptimeRobot, GitHub Actions)
@@ -39,6 +40,10 @@ async function handle(request: Request) {
   }
   if (job === "silent-revenue-sweep") {
     const result = await runSilentRevenueSweepForAllShops();
+    return json({ ...result, job, at: new Date().toISOString() });
+  }
+  if (job === "storage-janitor") {
+    const result = await runStorageJanitor();
     return json({ ...result, job, at: new Date().toISOString() });
   }
   if (job) return json({ ok: false, error: "unknown_job" }, 400);

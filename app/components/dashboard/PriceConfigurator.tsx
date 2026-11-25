@@ -36,7 +36,7 @@ export function PriceConfigurator({
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
         <strong style={{ color: C.champagne }}>Live-Baukasten-Preisrechner</strong>
         <span style={badge(C.emerald)}>
-          {isOwner ? "Für wertarbeitmanufaktur.myshopify.com: 0,00 € OWNER UNLIMITED" : "14 Tage kostenlos testen"}
+          {isOwner ? "Für konfigurierte Inhaber-Shops: 0,00 € OWNER UNLIMITED" : "14 Tage kostenlos testen"}
         </span>
       </div>
 
