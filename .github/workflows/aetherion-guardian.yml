@@ -12,9 +12,9 @@ jobs:
       - name: 1. Alle 3 Server-Knoten & Edge-Router prüfen
         id: health
         run: |
-          STATUS_PRIMARY=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://onrender.com || echo "000")
-          STATUS_BACKUP1=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://vercel.app || echo "000")
-          STATUS_EDGE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://workers.dev || echo "000")
+          STATUS_PRIMARY=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://onrender.com || echo "000")
+          STATUS_BACKUP1=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://vercel.app || echo "000")
+          STATUS_EDGE=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://workers.dev || echo "000")
           echo "primary=$STATUS_PRIMARY" >> $GITHUB_OUTPUT
           echo "backup1=$STATUS_BACKUP1" >> $GITHUB_OUTPUT
           echo "edge=$STATUS_EDGE" >> $GITHUB_OUTPUT
