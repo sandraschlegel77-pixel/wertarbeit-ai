@@ -1,3 +1,38 @@
+name: AETHERION OMEGA // Nightly Guardian & Backup
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  guardian-check-and-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Alle 3 Server-Knoten & Edge-Router prüfen
+        id: health
+        run: |
+          STATUS_PRIMARY=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://onrender.com || echo "000")
+          STATUS_BACKUP1=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://vercel.app || echo "000")
+          STATUS_EDGE=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 https://workers.dev || echo "000")
+          echo "primary=$STATUS_PRIMARY" >> $GITHUB_OUTPUT
+          echo "backup1=$STATUS_BACKUP1" >> $GITHUB_OUTPUT
+          echo "edge=$STATUS_EDGE" >> $GITHUB_OUTPUT
+
+      - name: 2. PostgreSQL Client installieren & Neon-Backup ziehen
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          pg_dump "$DATABASE_URL" --no-owner --no-acl | gzip > neon_backup_$(date +%Y-%m-%d).sql.gz
+
+      - name: 3. Backup als GitHub-Artifact sichern (30 Tage)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aetherion-neon-backup-${{ github.run_number }}
+          path: neon_backup_*.sql.gz
+          retention-days: 30
+
       - name: 4. Telegram-Statusbericht & RESCUE-112 Alarm senden
         if: always()
         env:
