@@ -16,7 +16,12 @@ function auditDetail(metadata: Record<string, string | number>) {
   });
 }
 
-async function auditedCompletion(shop: string, scope: AuditScope, input: CompletionInput): Promise<RoutedCompletion> {
+async function auditedCompletion(
+  shop: string,
+  scope: AuditScope,
+  input: CompletionInput,
+  offlineFallback?: string,
+): Promise<RoutedCompletion> {
   if (await isShopPaused(shop)) throw new Error("GLOBAL_AI_PAUSE");
   const executionId = randomUUID();
   const startedAt = new Date().toISOString();
@@ -49,6 +54,9 @@ async function auditedCompletion(shop: string, scope: AuditScope, input: Complet
   let result: RoutedCompletion;
   try {
     result = await routeAiCompletion(input);
+    if (!result.ok && offlineFallback) {
+      result = { ...result, ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback };
+    }
   } catch {
     try {
       await db.autopilotLog.update({
@@ -88,11 +96,11 @@ async function auditedCompletion(shop: string, scope: AuditScope, input: Complet
   return result;
 }
 
-export async function executeModuleWithAudit(input: CompletionInput & { shop: string; moduleId: string }): Promise<RoutedCompletion> {
+export async function executeModuleWithAudit(input: CompletionInput & { shop: string; moduleId: string; offlineFallback?: string }): Promise<RoutedCompletion> {
   const moduleId = OWNER_MODULE_IDS.find((id) => id === input.moduleId);
   if (!moduleId) throw new Error("AI_MODULE_INVALID");
   await requireModuleAccess(input.shop, moduleId);
-  return auditedCompletion(input.shop, moduleId, input);
+  return auditedCompletion(input.shop, moduleId, input, input.offlineFallback);
 }
 
 export async function executeMetaSupervisorWithAudit(input: CompletionInput & { shop: string }): Promise<RoutedCompletion> {
