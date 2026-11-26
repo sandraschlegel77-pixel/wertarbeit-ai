@@ -13,6 +13,8 @@ const recordSchema = z.object({
   notes: z.string().max(4096),
   expiresAt: z.string().max(32),
   favorite: z.boolean(),
+  enabledForFallback: z.boolean().default(false),
+  pinnedForFallback: z.boolean().default(false),
 }).strict();
 
 export type OwnerVaultRecord = z.infer<typeof recordSchema>;
@@ -39,7 +41,10 @@ export function createOwnerVaultRecord(label: string, secret: string, details?: 
     notes: details?.notes ?? "",
     expiresAt: details?.expiresAt ?? "",
     favorite: details?.favorite ?? false,
+    enabledForFallback: details?.enabledForFallback ?? false,
+    pinnedForFallback: details?.pinnedForFallback ?? false,
   });
+  if (parsed.pinnedForFallback && !parsed.enabledForFallback) throw new OwnerVaultRecordValidationError("VAULT_FALLBACK_INVALID");
   if (parsed.provider !== "custom") parsed.secret = parsed.secret.trim();
   if (!parsed.secret || Buffer.byteLength(parsed.secret, "utf8") > 8192) {
     throw new OwnerVaultRecordValidationError("VAULT_SECRET_INVALID");

@@ -4,8 +4,10 @@ import db from "../db.server";
 import { isConfiguredOwnerShop } from "./access-control-core";
 import { decryptVaultBlob, encryptVaultBlob } from "./aetherion-vault.server";
 import { createOwnerVaultRecord, OwnerVaultRecordValidationError, parseOwnerVaultRecord, serializeOwnerVaultRecord, type OwnerVaultDetailsInput } from "./owner-vault-record";
-import { vaultAuditData } from "./owner-vault-auth.server";
+import { auditVaultAction, vaultAuditData } from "./owner-vault-auth.server";
 import { parseVaultEnv, VaultImportError } from "./owner-vault-import";
+import { decryptOwnerVaultBackup, encryptOwnerVaultBackup } from "./owner-vault-backup.server";
+import { isFreeOpenRouterModel } from "./ai-provider-router-core";
 
 export function canAccessOwnerVault(shop: string): boolean {
   return isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN);
@@ -95,13 +97,15 @@ export async function listOwnerVaultSecrets(shop: string) {
         notes: record.notes,
         expiresAt: record.expiresAt,
         favorite: record.favorite,
+        enabledForFallback: record.enabledForFallback,
+        pinnedForFallback: record.pinnedForFallback,
         createdAt: entry.createdAt.toISOString(),
       };
     }),
   };
 }
 
-export async function revealOwnerVaultSecret(shop: string, id: string) {
+export async function getOwnerVaultRecord(shop: string, id: string) {
   requireAccess(shop);
   if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) {
     throw new OwnerVaultInputError("Ungültiger Tresoreintrag.");
@@ -112,10 +116,45 @@ export async function revealOwnerVaultSecret(shop: string, id: string) {
     select: { id: true, label: true, ciphertext: true },
   });
   if (!entry) throw new OwnerVaultInputError("Tresoreintrag nicht gefunden.");
-  return decryptRecord(shop, entry).secret;
+  return decryptRecord(shop, entry);
 }
 
-export async function saveOwnerVaultSecret(shop: string, label: string, value: string, details?: OwnerVaultDetailsInput) {
+export async function revealOwnerVaultSecret(shop: string, id: string) {
+  return (await getOwnerVaultRecord(shop, id)).secret;
+}
+
+export async function getOwnerVaultFreeCandidates(shop: string): Promise<Array<{ apiKey: string; model: string }>> {
+  requireAccess(shop);
+  await ensureVaultTable();
+  const entries = await db.ownerVaultSecret.findMany({
+    where: { shop },
+    select: { id: true, label: true, ciphertext: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const stages = ["beta", "experimental", "test"];
+  const records = entries.map((entry) => decryptRecord(shop, entry)).filter((record) =>
+    record.provider === "openrouter" && record.enabledForFallback && stages.includes(record.stage) &&
+    (!record.expiresAt || record.expiresAt >= new Date().toISOString().slice(0, 10)),
+  );
+  const candidates: Array<{ apiKey: string; model: string }> = [];
+  const add = (apiKey: string, model: string) => {
+    if (isFreeOpenRouterModel(model) && !candidates.some((entry) => entry.apiKey === apiKey && entry.model === model)) {
+      candidates.push({ apiKey, model });
+    }
+  };
+  for (const record of records.filter((entry) => entry.pinnedForFallback && isFreeOpenRouterModel(entry.modelHint)).slice(0, 2)) add(record.secret, record.modelHint);
+  const requestedModel = process.env.OPENROUTER_MODEL?.trim() || "";
+  const configuredModel = isFreeOpenRouterModel(requestedModel) ? requestedModel : "openrouter/free";
+  if (records[0]) add(records[0].secret, configuredModel);
+  for (const stage of stages) {
+    const record = records.find((entry) => entry.stage === stage && isFreeOpenRouterModel(entry.modelHint));
+    if (record) add(record.secret, record.modelHint);
+  }
+  return candidates.slice(0, 6);
+}
+
+export async function saveOwnerVaultSecret(shop: string, label: string, value: string, details?: OwnerVaultDetailsInput, uniqueLabel = false) {
   requireAccess(shop);
   const name = label.trim();
   if (!/^[\p{L}\p{N} ._()-]{1,60}$/u.test(name)) {
@@ -137,6 +176,9 @@ export async function saveOwnerVaultSecret(shop: string, label: string, value: s
   const ciphertext = RECORD_PREFIX + encryptVaultBlob(serialized, key(), `${shop}:${id}:v1`);
   await ensureVaultTable();
   await db.$transaction(async (tx) => {
+    if (uniqueLabel && await tx.ownerVaultSecret.findFirst({ where: { shop, label: { equals: name, mode: "insensitive" } } })) {
+      throw new OwnerVaultInputError("Diese Bezeichnung existiert bereits.");
+    }
     if (await tx.ownerVaultSecret.count({ where: { shop } }) >= 100) {
       throw new OwnerVaultInputError("Der Tresor enthält bereits 100 Einträge. Bitte zuerst einen Eintrag löschen.");
     }
@@ -147,7 +189,6 @@ export async function saveOwnerVaultSecret(shop: string, label: string, value: s
 
 export async function importOwnerVaultSecrets(shop: string, input: string, mode: string, details: OwnerVaultDetailsInput) {
   requireAccess(shop);
-  if (mode !== "skip" && mode !== "update") throw new OwnerVaultInputError("Ungültige Duplikatbehandlung.");
   let records: Array<{ label: string; serialized: string }>;
   try {
     records = parseVaultEnv(input).map(({ label, secret }) => ({
@@ -160,6 +201,32 @@ export async function importOwnerVaultSecrets(shop: string, input: string, mode:
     }
     throw error;
   }
+  return importVaultRecords(shop, records, mode, "bulk_import");
+}
+
+export async function exportOwnerVaultBackup(shop: string, password: string) {
+  requireAccess(shop);
+  await ensureVaultTable();
+  const entries = await db.ownerVaultSecret.findMany({
+    where: { shop },
+    select: { id: true, label: true, ciphertext: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const backup = await encryptOwnerVaultBackup(shop, entries.map((entry) => decryptRecord(shop, entry)), password);
+  await auditVaultAction(shop, "export", "completed");
+  return backup;
+}
+
+export async function importOwnerVaultBackup(shop: string, input: string, password: string, mode: string) {
+  requireAccess(shop);
+  const entries = await decryptOwnerVaultBackup(input, shop, password);
+  const records = entries.map((record) => ({ label: record.label, serialized: serializeOwnerVaultRecord(record) }));
+  return importVaultRecords(shop, records, mode, "backup_import");
+}
+
+async function importVaultRecords(shop: string, records: Array<{ label: string; serialized: string }>, mode: string, action: "bulk_import" | "backup_import") {
+  if (mode !== "skip" && mode !== "update") throw new OwnerVaultInputError("Ungültige Duplikatbehandlung.");
   const encryptionKey = key();
   await ensureVaultTable();
   return db.$transaction(async (tx) => {
@@ -188,7 +255,7 @@ export async function importOwnerVaultSecrets(shop: string, input: string, mode:
         created++;
       }
     }
-    await tx.autopilotLog.create({ data: vaultAuditData(shop, "bulk_import", "completed") });
+    await tx.autopilotLog.create({ data: vaultAuditData(shop, action, "completed") });
     return { created, updated, skipped };
   }, { isolationLevel: "Serializable" });
 }

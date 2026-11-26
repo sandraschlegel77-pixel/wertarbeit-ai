@@ -13,6 +13,12 @@ require.extensions[".ts"] = (module, filename) => {
   });
   module._compile(outputText, filename);
 };
+require.extensions[".tsx"] = (module, filename) => {
+  const { outputText } = ts.transpileModule(readFileSync(filename, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  });
+  module._compile(outputText, filename);
+};
 
 const owner = "wertarbeitmanufaktur.myshopify.com";
 const otherOwner = "wertarbeit-testshop.myshopify.com";
@@ -23,12 +29,33 @@ let failInitialization = false;
 let ddl = [];
 let audit = [];
 let failAudit = false;
+let shopPaused = false;
 const db = {
+  companyRule: {
+    async findUnique({ where }) {
+      return where.shop_key.key === "GLOBAL_AI_PAUSE" && shopPaused ? { active: true, value: true } : null;
+    },
+  },
   autopilotLog: {
     async create({ data }) {
       if (failAudit) throw new Error("audit unavailable");
       audit.push(data);
-      return { id: String(audit.length) };
+      return { id: data.id ?? String(audit.length) };
+    },
+    async count({ where }) {
+      return audit.filter((entry) => (typeof where.shop === "string" ? where.shop === entry.shop : where.shop.in.includes(entry.shop)) &&
+        entry.action === where.action && (!where.status || where.status === entry.status) &&
+        entry.createdAt >= where.createdAt.gte).length;
+    },
+    async findFirst({ where }) {
+      return audit.find((entry) => entry.id === where.id && entry.shop === where.shop && entry.action === where.action && entry.status === where.status) ?? null;
+    },
+    async updateMany({ where, data }) {
+      const entry = audit.find((item) => item.id === where.id && item.shop === where.shop && item.action === where.action && item.status === where.status &&
+        (!where.detail || item.detail === where.detail) && (!where.createdAt || item.createdAt > where.createdAt.gt));
+      if (!entry) return { count: 0 };
+      Object.assign(entry, data);
+      return { count: 1 };
     },
   },
   async $queryRaw(strings) {
@@ -50,7 +77,10 @@ const db = {
       assert.deepEqual(select, { id: true, label: true });
       return rows.filter((row) => row.shop === where.shop).map(({ id, label }) => ({ id, label }));
     },
-    async findFirst({ where }) { return rows.find((row) => row.shop === where.shop && row.id === where.id) ?? null; },
+    async findFirst({ where }) {
+      if (where.label) return rows.find((row) => row.shop === where.shop && row.label.toLowerCase() === where.label.equals.toLowerCase()) ?? null;
+      return rows.find((row) => row.shop === where.shop && row.id === where.id) ?? null;
+    },
     async updateMany({ where, data }) {
       const row = rows.find((item) => item.shop === where.shop && item.id === where.id);
       if (!row) return { count: 0 };
@@ -64,14 +94,16 @@ const db = {
     },
   },
   async $transaction(callback, options) {
-    if (options) assert.equal(options.isolationLevel, "Serializable");
+    if (options) assert.ok(["Serializable", "ReadCommitted"].includes(options.isolationLevel));
     else initializationAttempts++;
     return callback(this);
   },
 };
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
-  if ((parent?.filename.endsWith("owner-vault.server.ts") || parent?.filename.endsWith("owner-vault-auth.server.ts")) && request === "../db.server") {
+  if ((parent?.filename.endsWith("owner-vault.server.ts") || parent?.filename.endsWith("owner-vault-auth.server.ts") ||
+    parent?.filename.endsWith("api.owner-vault.ts") || parent?.filename.endsWith("autopilot-control.server.ts") ||
+    parent?.filename.endsWith("owner-vault-policy.server.ts") || parent?.filename.endsWith("owner-vault-standalone.server.ts")) && request === "../db.server") {
     return { __esModule: true, default: db };
   }
   if (parent?.filename.endsWith("api.owner-vault.ts") && request === "../shopify.server") {
@@ -85,6 +117,8 @@ const auth = require("../app/services/owner-vault-auth.server.ts");
 const { decryptVaultBlob, encryptVaultBlob } = require("../app/services/aetherion-vault.server.ts");
 const { parseOwnerVaultRecord } = require("../app/services/owner-vault-record.ts");
 const { generateVaultPassword, vaultPasswordStrength } = require("../app/components/dashboard/vault-password.ts");
+const standalone = require("../app/routes/vault.tsx");
+const standaloneAuth = require("../app/services/owner-vault-standalone.server.ts");
 Module._load = originalLoad;
 
 const originalOwner = process.env.OWNER_SHOP_DOMAIN;
@@ -276,27 +310,23 @@ test("reveal requires an unlocked, shop-bound session and records no secret in t
   rows = [];
 });
 
-test("password fallback, idle expiry, session binding and escalating lockouts", async () => {
+test("password fallback, idle expiry, session binding and persistent shop-wide lockout", async () => {
   const now = Date.now();
   delete process.env.VAULT_MASTER_PASSWORD;
   const vaultKey = process.env.AETHERION_VAULT_KEY;
   const token = await auth.unlockOwnerVault(owner, "session-a", vaultKey, now);
-  assert.throws(() => auth.requireVaultSession(token, owner, "session-b", now));
-  auth.requireVaultSession(token, owner, "session-a", now + 14 * 60_000);
-  assert.throws(() => auth.requireVaultSession(token, owner, "session-a", now + 30 * 60_000));
+  await assert.rejects(auth.requireVaultSession(token, owner, "session-b", now));
+  await auth.requireVaultSession(token, owner, "session-a", now + 14 * 60_000);
+  await assert.rejects(auth.requireVaultSession(token, owner, "session-a", now + 30 * 60_000));
 
   process.env.VAULT_MASTER_PASSWORD = "test-general-password";
-  const shop = "lockout-test.myshopify.com";
-  let time = now;
-  for (const delay of [5, 15, 60]) {
-    for (let i = 0; i < 5; i++) {
-      await assert.rejects(auth.unlockOwnerVault(shop, "session-a", "bad-password", time), (error) => error.status === (i === 4 ? 429 : 401));
-    }
-    await assert.rejects(auth.unlockOwnerVault(shop, "session-a", "test-general-password", time + delay * 60_000 - 1), (error) => error.status === 429);
-    time += delay * 60_000;
+  for (let i = 0; i < 5; i++) {
+    await assert.rejects(auth.unlockOwnerVault(owner, "session-a", "bad-password", now), (error) => error.status === (i === 4 ? 429 : 401));
   }
-  assert.ok(await auth.unlockOwnerVault(shop, "session-a", "test-general-password", time));
+  await assert.rejects(auth.unlockOwnerVault(otherOwner, "session-b", "test-general-password", now + 15 * 60_000), (error) => error.status === 429);
+  assert.ok(await auth.unlockOwnerVault(otherOwner, "session-b", "test-general-password", now + 15 * 60_000 + 1));
   assert.doesNotMatch(JSON.stringify(audit), /bad-password|test-general-password/);
+  audit = [];
 });
 
 test("password generator enforces length bounds and strength indicator is only a heuristic", () => {
@@ -350,5 +380,221 @@ test("unlock and reveal fail closed when audit logging is unavailable", async ()
   } finally {
     failAudit = false;
     rows = [];
+  }
+});
+
+test("encrypted backup round-trips with duplicate handling, shop binding and tamper rejection", async () => {
+  const token = await unlock();
+  await call(token, { type: "save", label: "Backup Wert", value: "private-backup-example", notes: "Notiz ä" });
+  const id = rows[0].id;
+  const exported = await call(token, { type: "export", backupPassword: "example-backup-password" });
+  assert.equal(exported.status, 200);
+  const { backup } = await exported.json();
+  assert.doesNotMatch(backup, /private-backup-example|Backup Wert|Notiz ä/);
+  const file = (text) => new File([text], "backup.aetherion-vault.json", { type: "application/json" });
+  const fields = (text, password, mode) => ({ type: "backup_import", backup: file(text), backupPassword: password, mode });
+  const wrongPassword = await call(token, fields(backup, "wrong-backup-password", "update"));
+  assert.equal(wrongPassword.status, 400);
+  assert.equal(rows.length, 1);
+  const modified = JSON.parse(backup);
+  modified.tag = `${modified.tag[0] === "A" ? "B" : "A"}${modified.tag.slice(1)}`;
+  assert.equal((await call(token, fields(JSON.stringify(modified), "example-backup-password", "update"))).status, 400);
+  assert.match((await (await call(token, fields(backup, "example-backup-password", "skip"))).json()).message, /1 übersprungen/);
+  await call(token, { type: "delete", id });
+  assert.match((await (await call(token, fields(backup, "example-backup-password", "update"))).json()).message, /1 neu/);
+  assert.equal((await (await call(token, { type: "reveal", id: rows[0].id })).json()).secret, "private-backup-example");
+  sessionShop = otherOwner;
+  const otherToken = await unlock();
+  assert.equal((await call(otherToken, fields(backup, "example-backup-password", "update"))).status, 400);
+  assert.equal(rows.length, 1);
+  assert.doesNotMatch(JSON.stringify(audit), /private-backup-example|example-backup-password/);
+  rows = [];
+  sessionShop = owner;
+});
+
+test("radar verifies model prices, makes unavailable fallback explicit and adopts only free models", async () => {
+  const token = await unlock();
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return Response.json({ data: [
+      { id: "example/model:free", pricing: { prompt: "0", completion: "0" } },
+      { id: "example/paid:free", pricing: { prompt: "0", completion: "1" } },
+      { id: "example/paid", pricing: { prompt: "0", completion: "0" } },
+    ] });
+  };
+  try {
+    const response = await call(token, { type: "discover_free_models" });
+    const data = await response.json();
+    assert.deepEqual(data.models, ["example/model:free"]);
+    assert.equal(data.verified, true);
+    assert.equal(requests[0].url, "https://openrouter.ai/api/v1/models");
+    assert.ok(requests[0].options.signal instanceof AbortSignal);
+    await call(token, { type: "save", label: "OpenRouter", value: "placeholder-api-key", provider: "openrouter" });
+    const id = rows[0].id;
+    assert.equal((await call(token, { type: "adopt_free_model", id, model: "example/paid" })).status, 400);
+    assert.equal((await call(token, { type: "adopt_free_model", id, model: "example/model:free" })).status, 200);
+    assert.equal((await call(token, { type: "adopt_free_model", id, model: "example/model:free" })).status, 400);
+    const list = await service.listOwnerVaultSecrets(owner);
+    assert.equal(list.entries[1].stage, "beta");
+    assert.equal(list.entries[1].modelHint, "example/model:free");
+    global.fetch = async () => { throw new Error("offline"); };
+    const fallback = await (await call(token, { type: "discover_free_models" })).json();
+    assert.equal(fallback.verified, false);
+    assert.match(fallback.message, /ungeprüft/);
+    assert.deepEqual(fallback.models, ["openrouter/free"]);
+    shopPaused = true;
+    assert.equal((await call(token, { type: "discover_free_models" })).status, 400);
+  } finally {
+    shopPaused = false;
+    global.fetch = originalFetch;
+    rows = [];
+  }
+});
+
+test("sandbox enforces pause, dry-run, free model and zero-price routing", async () => {
+  const token = await unlock();
+  const originalFetch = global.fetch;
+  const originalCloud = process.env.AI_CLOUD_ENABLED;
+  const originalDryRun = process.env.DRY_RUN_MODE;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, options, body: JSON.parse(options.body) });
+    return Response.json({ choices: [{ message: { content: "OK" } }], usage: { cost: 0 } });
+  };
+  try {
+    await call(token, { type: "save", label: "Free Test", value: "placeholder-api-key", provider: "openrouter", stage: "test", modelHint: "example/model:free" });
+    const id = rows[0].id;
+    process.env.AI_CLOUD_ENABLED = "true";
+    process.env.DRY_RUN_MODE = "true";
+    assert.equal((await call(token, { type: "sandbox_test", id })).status, 400);
+    assert.equal(requests.length, 0);
+    process.env.DRY_RUN_MODE = "false";
+    shopPaused = true;
+    assert.equal((await call(token, { type: "sandbox_test", id })).status, 400);
+    shopPaused = false;
+    const result = await (await call(token, { type: "sandbox_test", id })).json();
+    assert.equal(result.ok, true);
+    assert.equal(result.response, "OK");
+    assert.equal(result.costConfirmed, true);
+    assert.ok(result.latencyMs >= 0);
+    assert.equal(requests[0].url, "https://openrouter.ai/api/v1/chat/completions");
+    assert.deepEqual(requests[0].body.provider.max_price, { prompt: "0", completion: "0", request: "0", image: "0", audio: "0" });
+    assert.equal(requests[0].body.messages[0].content, "Antworte nur mit OK");
+    assert.ok(requests[0].options.signal instanceof AbortSignal);
+    assert.doesNotMatch(JSON.stringify(audit), /placeholder-api-key/);
+    global.fetch = async () => new Response("", { status: 429 });
+    assert.equal((await call(token, { type: "sandbox_test", id })).status, 502);
+  } finally {
+    if (originalCloud === undefined) delete process.env.AI_CLOUD_ENABLED;
+    else process.env.AI_CLOUD_ENABLED = originalCloud;
+    if (originalDryRun === undefined) delete process.env.DRY_RUN_MODE;
+    else process.env.DRY_RUN_MODE = originalDryRun;
+    shopPaused = false;
+    global.fetch = originalFetch;
+    rows = [];
+  }
+});
+
+test("vault AI candidates require explicit opt-in, preserve stage order and remain shop-scoped", async () => {
+  const token = await unlock();
+  const originalModel = process.env.OPENROUTER_MODEL;
+  process.env.OPENROUTER_MODEL = "paid/model";
+  try {
+    const add = async (label, stage, modelHint, options = {}) => {
+      const response = await call(token, { type: "save", label, value: `${label}-placeholder`, provider: "openrouter", stage, modelHint, ...options });
+      assert.equal(response.status, 200);
+    };
+    await add("Beta", "beta", "example/beta:free", { enabledForFallback: "on" });
+    await add("Experimental", "experimental", "example/experimental:free", { enabledForFallback: "on" });
+    await add("Pinned", "test", "example/pinned:free", { enabledForFallback: "on", pinnedForFallback: "on" });
+    await add("Disabled", "test", "example/disabled:free");
+    await add("Paid", "beta", "example/paid", { enabledForFallback: "on" });
+    assert.equal((await call(token, { type: "save", label: "Invalid Pin", value: "placeholder", provider: "openrouter", pinnedForFallback: "on" })).status, 400);
+    const candidates = await service.getOwnerVaultFreeCandidates(owner);
+    assert.deepEqual(candidates.map((candidate) => candidate.model), ["example/pinned:free", "openrouter/free", "example/beta:free", "example/experimental:free"]);
+    assert.doesNotMatch(JSON.stringify(candidates), /Disabled-placeholder|Paid-placeholder/);
+    assert.deepEqual(await service.getOwnerVaultFreeCandidates(otherOwner), []);
+  } finally {
+    if (originalModel === undefined) delete process.env.OPENROUTER_MODEL;
+    else process.env.OPENROUTER_MODEL = originalModel;
+    rows = [];
+  }
+});
+
+test("standalone access requires same-origin login, a signed revocable cookie and configured shops", async () => {
+  const originalUrl = process.env.SHOPIFY_APP_URL;
+  const originalOwnerShops = process.env.OWNER_SHOP_DOMAIN;
+  process.env.SHOPIFY_APP_URL = "https://example.invalid";
+  process.env.OWNER_SHOP_DOMAIN = `${owner},${otherOwner}`;
+  process.env.VAULT_MASTER_PASSWORD = "test-general-password";
+  audit = [];
+  const standaloneRequest = (fields, cookie, origin = "https://example.invalid") => {
+    const body = new FormData();
+    for (const [name, value] of Object.entries(fields)) body.set(name, value);
+    return new Request("https://example.invalid/vault", { method: "POST", body, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}) } });
+  };
+  try {
+    const blocked = await standalone.action({ request: standaloneRequest({ type: "unlock", password: "test-general-password" }, null, "https://attacker.invalid") });
+    assert.equal(blocked.status, 403);
+    assert.equal(audit.length, 0);
+    const unlocked = await standalone.action({ request: standaloneRequest({ type: "unlock", password: "test-general-password" }) });
+    assert.equal(unlocked.status, 200);
+    assert.equal(unlocked.headers.get("cache-control"), "no-store");
+    assert.match(unlocked.headers.get("x-robots-tag"), /noindex/);
+    const header = unlocked.headers.get("set-cookie");
+    assert.match(header, /HttpOnly/);
+    assert.match(header, /Secure/);
+    assert.match(header, /SameSite=Strict/);
+    assert.match(header, /Path=\/vault/);
+    assert.match(header, /Max-Age=900/);
+    const cookie = header.split(";")[0];
+    assert.doesNotMatch(JSON.stringify(audit), /test-general-password|atelierpilot_vault=/);
+    const page = await standalone.loader({ request: new Request("https://example.invalid/vault", { headers: { Cookie: cookie } }) });
+    assert.deepEqual((await page.json()).shops, [owner, otherOwner]);
+    const expiresAt = Number(cookie.split(".")[2]);
+    assert.equal(await standaloneAuth.getStandaloneSession(new Request("https://example.invalid/vault", { headers: { Cookie: cookie } }), expiresAt), null);
+    const forged = `${cookie.slice(0, -1)}${cookie.endsWith("A") ? "B" : "A"}`;
+    assert.equal((await (await standalone.loader({ request: new Request("https://example.invalid/vault", { headers: { Cookie: forged } }) })).json()).unlocked, false);
+    assert.equal((await standalone.action({ request: standaloneRequest({ type: "save", shop: "attacker.myshopify.com", label: "Test", secret: "placeholder", provider: "custom", stage: "test", modelHint: "" }, cookie) })).status, 400);
+    const saved = await standalone.action({ request: standaloneRequest({ type: "save", shop: owner, label: "Test", secret: "placeholder", provider: "custom", stage: "test", modelHint: "" }, cookie) });
+    assert.equal(saved.status, 200);
+    assert.equal(rows.length, 1);
+    const reveal = await standalone.action({ request: standaloneRequest({ type: "reveal", shop: owner, id: rows[0].id }, cookie) });
+    assert.equal((await reveal.json()).secret, "placeholder");
+    const locked = await standalone.action({ request: standaloneRequest({ type: "lock" }, cookie) });
+    assert.equal(locked.status, 200);
+    assert.match(locked.headers.get("set-cookie"), /Max-Age=0/);
+    assert.equal((await (await standalone.loader({ request: new Request("https://example.invalid/vault", { headers: { Cookie: cookie } }) })).json()).unlocked, false);
+  } finally {
+    if (originalUrl === undefined) delete process.env.SHOPIFY_APP_URL; else process.env.SHOPIFY_APP_URL = originalUrl;
+    if (originalOwnerShops === undefined) delete process.env.OWNER_SHOP_DOMAIN; else process.env.OWNER_SHOP_DOMAIN = originalOwnerShops;
+    rows = [];
+    audit = [];
+  }
+});
+
+test("model discovery aborts at its configured 7500 ms deadline and reports fallback as unverified", async () => {
+  const token = await unlock();
+  const originalFetch = global.fetch;
+  const originalSetTimeout = global.setTimeout;
+  let observedTimeout;
+  global.setTimeout = (callback, delay, ...args) => {
+    if (delay === 7500) { observedTimeout = delay; return originalSetTimeout(callback, 1, ...args); }
+    return originalSetTimeout(callback, delay, ...args);
+  };
+  global.fetch = async (_url, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+  });
+  try {
+    const data = await (await call(token, { type: "discover_free_models" })).json();
+    assert.equal(observedTimeout, 7500);
+    assert.equal(data.verified, false);
+    assert.deepEqual(data.models, ["openrouter/free"]);
+    assert.match(data.message, /ungeprüft/);
+  } finally {
+    global.fetch = originalFetch;
+    global.setTimeout = originalSetTimeout;
   }
 });

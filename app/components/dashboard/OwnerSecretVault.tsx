@@ -7,12 +7,18 @@ import { parseVaultEnv, VaultImportError } from "../../services/owner-vault-impo
 type VaultResponse = {
   ok: boolean;
   message?: string;
-  action?: "unlock" | "lock" | "ping" | "list" | "save" | "delete" | "reveal" | "bulk_import";
+  action?: "unlock" | "lock" | "ping" | "list" | "save" | "delete" | "reveal" | "bulk_import" | "export" | "backup_import" | "discover_free_models" | "adopt_free_model" | "sandbox_test";
   locked?: boolean;
   token?: string;
   marker?: string;
   id?: string;
   secret?: string;
+  backup?: string;
+  models?: string[];
+  verified?: boolean;
+  latencyMs?: number;
+  response?: string;
+  costConfirmed?: boolean;
   keyConfigured?: boolean;
   entries?: {
     id: string; label: string; createdAt: string; provider?: string; category?: string;
@@ -27,11 +33,16 @@ export function OwnerSecretVault() {
   const authentication = useFetcher<VaultResponse>();
   const reveal = useFetcher<VaultResponse>();
   const heartbeat = useFetcher<VaultResponse>();
+  const backupExport = useFetcher<VaultResponse>();
+  const radar = useFetcher<VaultResponse>();
+  const sandbox = useFetcher<VaultResponse>();
   const { submit: listSubmit } = listing;
   const { submit: heartbeatSubmit } = heartbeat;
   const { submit: mutationSubmit } = mutation;
   const formRef = useRef<HTMLFormElement>(null);
   const passwordFormRef = useRef<HTMLFormElement>(null);
+  const backupExportFormRef = useRef<HTMLFormElement>(null);
+  const backupImportFormRef = useRef<HTMLFormElement>(null);
   const [secret, setSecret] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alle");
@@ -45,8 +56,10 @@ export function OwnerSecretVault() {
   const [importText, setImportText] = useState("");
   const [preview, setPreview] = useState<string[] | null>(null);
   const [importError, setImportError] = useState("");
+  const [radarSource, setRadarSource] = useState("");
   const copied = useRef<{ value: string; deadline: number } | null>(null);
   const revealToken = useRef<string | null>(null);
+  const backupToken = useRef<string | null>(null);
   const unlockCounter = useRef(0);
   const copyActive = copySeconds > 0;
 
@@ -64,20 +77,36 @@ export function OwnerSecretVault() {
   }, [token, listingMarker, listSubmit]);
 
   useEffect(() => {
-    if (token && mutation.data?.ok && (mutation.data.action === "save" || mutation.data.action === "delete" || mutation.data.action === "bulk_import")) {
+    if (token && mutation.data?.ok && (mutation.data.action === "save" || mutation.data.action === "delete" || mutation.data.action === "bulk_import" || mutation.data.action === "backup_import")) {
       if (mutation.data.action === "save") {
         formRef.current?.reset();
         setSecret("");
       }
       if (mutation.data.action === "bulk_import") { setImportText(""); setPreview(null); }
+      if (mutation.data.action === "backup_import") backupImportFormRef.current?.reset();
       listSubmit({ type: "list", token, marker: listingMarker }, { method: "post", action: "/api/owner-vault" });
     }
   }, [mutation.data, token, listingMarker, listSubmit]);
 
   useEffect(() => {
+    if (token && backupToken.current === token && backupExport.data?.ok && backupExport.data.action === "export" && backupExport.data.backup) {
+      backupToken.current = null;
+      const url = URL.createObjectURL(new Blob([backupExport.data.backup], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "backup.aetherion-vault.json";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      backupExportFormRef.current?.reset();
+      backupExport.submit({ type: "ping", token }, { method: "post", action: "/api/owner-vault" });
+    }
+  }, [backupExport, backupExport.data, token]);
+
+  useEffect(() => {
     if (token && revealToken.current === token && reveal.data?.ok && reveal.data.action === "reveal" && reveal.data.id && reveal.data.secret !== undefined) {
       setShown({ id: reveal.data.id, value: reveal.data.secret });
       revealToken.current = null;
+      backupToken.current = null;
       reveal.submit({ type: "ping", token }, { method: "post", action: "/api/owner-vault" });
     }
   }, [reveal, reveal.data, token]);
@@ -100,6 +129,7 @@ export function OwnerSecretVault() {
       setImportText("");
       setPreview(null);
       revealToken.current = null;
+      backupToken.current = null;
     };
     const activity = () => {
       window.clearTimeout(timer);
@@ -131,6 +161,18 @@ export function OwnerSecretVault() {
   useEffect(() => {
     if (heartbeat.data?.locked) { setToken(null); setShown(null); setSecret(""); setImportText(""); setPreview(null); }
   }, [heartbeat.data]);
+  useEffect(() => {
+    if (backupExport.data?.locked) { setToken(null); setShown(null); setSecret(""); setImportText(""); setPreview(null); }
+  }, [backupExport.data]);
+  useEffect(() => {
+    if (radar.data?.locked) { setToken(null); setShown(null); setSecret(""); setImportText(""); setPreview(null); }
+    if (token && radar.data?.ok && radar.data.action === "adopt_free_model") {
+      listSubmit({ type: "list", token, marker: listingMarker }, { method: "post", action: "/api/owner-vault" });
+    }
+  }, [radar.data, token, listingMarker, listSubmit]);
+  useEffect(() => {
+    if (sandbox.data?.locked) { setToken(null); setShown(null); setSecret(""); setImportText(""); setPreview(null); }
+  }, [sandbox.data]);
 
   useEffect(() => {
     if (!copyActive) return;
@@ -215,6 +257,8 @@ export function OwnerSecretVault() {
         <label>Notiz <textarea name="notes" maxLength={4096} autoComplete="off" /></label>
         <label>Ablaufdatum <input name="expiresAt" type="date" /></label>
         <label><input name="favorite" type="checkbox" /> Favorit</label>
+        <label><input name="enabledForFallback" type="checkbox" /> Für KI-Fallback freigeben (externe Modellanfragen)</label>
+        <label><input name="pinnedForFallback" type="checkbox" /> Als bevorzugtes Fallback-Modell markieren</label>
         <label>API-Key oder Passwort <input name="value" type="password" required maxLength={8192} autoComplete="new-password" value={secret} onChange={(event) => setSecret(event.target.value)} /></label>
         <label>Generator-Länge <input type="number" min={16} max={48} value={passwordLength} onChange={(event) => setPasswordLength(Number(event.target.value))} /></label>
         <button type="button" style={btn} onClick={() => {
@@ -262,6 +306,55 @@ export function OwnerSecretVault() {
           {importError && <div role="alert">{importError}</div>}
           {preview && <div>{preview.length} Einträge: {preview.join(", ")}</div>}
           <button type="submit" style={btnGold} disabled={!preview || busy || !snapshot?.keyConfigured}>Verschlüsselt importieren</button>
+        </mutation.Form>
+      </details>
+      <details>
+        <summary>OpenRouter-Modellradar und Sandbox</summary>
+        <p>Nur OpenRouter mit Nullpreis-Routing; andere Anbieter sind nicht geprüft. Für Live-Tests müssen Cloud-KI aktiviert und Dry-Run ausgeschaltet sein. Weitere Kosten und Verfügbarkeit sind nicht garantiert.</p>
+        <button type="button" style={btn} disabled={radar.state !== "idle"} onClick={() => {
+          radar.submit({ type: "discover_free_models", token }, { method: "post", action: "/api/owner-vault" });
+        }}>Modelle abrufen</button>
+        {radar.data?.message && <div role={radar.data.ok ? "status" : "alert"}>{radar.data.message}</div>}
+        {radar.data?.models && <>
+          <label>OpenRouter-Schlüssel <select value={radarSource} onChange={(event) => setRadarSource(event.target.value)}>
+            <option value="">Bitte auswählen</option>
+            {snapshot?.entries?.filter((entry) => entry.provider === "openrouter").map((entry) => <option value={entry.id} key={entry.id}>{entry.label}</option>)}
+          </select></label>
+          {radar.data.models.map((model) => <div key={model}>
+            {model} {!radar.data?.verified && "(ungeprüft)"}
+            <button type="button" style={btn} disabled={!radarSource || radar.state !== "idle"} onClick={() => {
+              radar.submit({ type: "adopt_free_model", token, id: radarSource, model }, { method: "post", action: "/api/owner-vault" });
+            }}>Als Beta übernehmen</button>
+          </div>)}
+        </>}
+        {snapshot?.entries?.filter((entry) => entry.provider === "openrouter" && ["beta", "experimental", "test"].includes(entry.stage ?? "")).map((entry) => (
+          <div key={entry.id}>{entry.label} · {entry.modelHint}
+            <button type="button" style={btn} disabled={sandbox.state !== "idle"} onClick={() => {
+              sandbox.submit({ type: "sandbox_test", token, id: entry.id }, { method: "post", action: "/api/owner-vault" });
+            }}>Live testen</button>
+          </div>
+        ))}
+        {sandbox.data && <div role={sandbox.data.ok ? "status" : "alert"}>
+          {sandbox.data.ok ? `${sandbox.data.response} · ${sandbox.data.latencyMs} ms · ${sandbox.data.costConfirmed ? "Anbieter meldet 0 Kosten" : "Kosten nicht vom Anbieter bestätigt"}` : sandbox.data.message}
+        </div>}
+      </details>
+      <details>
+        <summary>Verschlüsseltes Backup</summary>
+        <p>Das separate Backup-Passwort sicher aufbewahren. Ohne dieses Passwort ist eine Wiederherstellung nicht möglich. Import nur in denselben Shop.</p>
+        <backupExport.Form ref={backupExportFormRef} method="post" action="/api/owner-vault" onSubmit={() => { backupToken.current = token; }} style={{ display: "grid", gap: 8 }}>
+          <input type="hidden" name="type" value="export" />
+          <input type="hidden" name="token" value={token} />
+          <label>Backup-Passwort <input type="password" name="backupPassword" minLength={16} maxLength={1024} required autoComplete="off" /></label>
+          <button type="submit" style={btn} disabled={backupExport.state !== "idle" || !snapshot?.keyConfigured}>Backup herunterladen</button>
+        </backupExport.Form>
+        {backupExport.data && !backupExport.data.ok && <div role="alert">{backupExport.data.message}</div>}
+        <mutation.Form ref={backupImportFormRef} method="post" encType="multipart/form-data" action="/api/owner-vault" style={{ display: "grid", gap: 8 }}>
+          <input type="hidden" name="type" value="backup_import" />
+          <input type="hidden" name="token" value={token} />
+          <label>Backup-Datei <input type="file" name="backup" accept=".json,application/json" required /></label>
+          <label>Backup-Passwort <input type="password" name="backupPassword" minLength={16} maxLength={1024} required autoComplete="off" /></label>
+          <label>Duplikate <select name="mode"><option value="skip">Überspringen</option><option value="update">Aktualisieren</option></select></label>
+          <button type="submit" style={btn} disabled={busy || !snapshot?.keyConfigured}>Backup importieren</button>
         </mutation.Form>
       </details>
       {reveal.data && !reveal.data.ok && <div role="alert">{reveal.data.message}</div>}

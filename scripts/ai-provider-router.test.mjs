@@ -92,3 +92,41 @@ test("cloud routing remains offline unless explicitly enabled and configured", a
     else process.env.AI_CLOUD_ENABLED = original;
   }
 });
+
+test("opted-in vault fallback routes only free models with zero-price limits", async () => {
+  const originalCloud = process.env.AI_CLOUD_ENABLED;
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const originalCascade = process.env.AETHERION_CASCADE_ENABLED;
+  const oldFetch = global.fetch;
+  const models = [];
+  global.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    models.push(body.model);
+    assert.equal(url, "https://openrouter.ai/api/v1/chat/completions");
+    assert.deepEqual(body.provider.max_price, { prompt: "0", completion: "0", request: "0", image: "0", audio: "0" });
+    assert.doesNotMatch(JSON.stringify(body.messages), /max@example\.com/);
+    if (models.length === 1) return new Response("", { status: 429 });
+    return Response.json({ choices: [{ message: { content: "{}" } }] });
+  };
+  try {
+    process.env.AI_CLOUD_ENABLED = "true";
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.AETHERION_CASCADE_ENABLED = "false";
+    const result = await routeAiCompletion(
+      { systemPrompt: "review", userPrompt: "email: max@example.com", maxTokens: 20 },
+      [
+        { apiKey: "test-key", model: "example/pinned:free" },
+        { apiKey: "test-key", model: "example/paid" },
+        { apiKey: "test-key", model: "openrouter/free" },
+      ],
+    );
+    assert.equal(result.ok, true);
+    assert.deepEqual(models, ["example/pinned:free", "openrouter/free"]);
+    assert.equal(result.model, "openrouter/free");
+  } finally {
+    global.fetch = oldFetch;
+    if (originalCloud === undefined) delete process.env.AI_CLOUD_ENABLED; else process.env.AI_CLOUD_ENABLED = originalCloud;
+    if (originalKey === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = originalKey;
+    if (originalCascade === undefined) delete process.env.AETHERION_CASCADE_ENABLED; else process.env.AETHERION_CASCADE_ENABLED = originalCascade;
+  }
+});

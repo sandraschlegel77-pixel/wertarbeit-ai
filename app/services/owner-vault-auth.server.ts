@@ -1,12 +1,10 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import db from "../db.server";
+import { getOwnerShopDomains, isConfiguredOwnerShop } from "./access-control-core";
 
 const IDLE_MS = 15 * 60_000;
 const WINDOW_MS = 15 * 60_000;
-const LOCKS_MS = [5 * 60_000, 15 * 60_000, 60 * 60_000];
 const MAX_SESSIONS = 1024;
-const sessions = new Map<string, { shop: string; session: string; expires: number }>();
-const attempts = new Map<string, { failures: number; since: number; lockUntil: number; level: number; last: number }>();
 
 export class VaultAuthError extends Error {
   constructor(message: string, public readonly status = 401) {
@@ -27,11 +25,13 @@ function signature(id: string) {
   return createHmac("sha256", signingKey()).update(id).digest("base64url");
 }
 
-function clean(now: number) {
-  for (const [id, session] of sessions) if (session.expires <= now) sessions.delete(id);
-  for (const [shop, entry] of attempts) {
-    if (entry.lockUntil <= now && now - entry.last > 24 * 60 * 60_000) attempts.delete(shop);
-  }
+export function signStandaloneVaultValue(value: string) {
+  return createHmac("sha256", signingKey()).update("standalone-v1\0").update(value).digest("base64url");
+}
+
+function cockpitSessionDetail(session: string) {
+  const metadata = { sessionHash: createHash("sha256").update(session).digest("hex") };
+  return JSON.stringify({ metadata, sha256: createHash("sha256").update(JSON.stringify(metadata)).digest("hex") });
 }
 
 export function vaultAuditData(shop: string, action: string, status: string) {
@@ -49,59 +49,89 @@ export async function auditVaultAction(shop: string, action: string, status: str
   await db.autopilotLog.create({ data: vaultAuditData(shop, action, status) });
 }
 
-export async function unlockOwnerVault(shop: string, session: string, password: string, now = Date.now()) {
-  if (!session) throw new VaultAuthError("Shopify-Sitzung fehlt.", 403);
+export async function verifyOwnerVaultPassword(shop: string, password: string, now = Date.now()) {
+  if (!isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN)) throw new VaultAuthError("Tresorzugriff nicht erlaubt.", 403);
   signingKey();
-  clean(now);
-  let state = attempts.get(shop);
-  if (state && state.lockUntil > now) throw new VaultAuthError("Tresor vorübergehend gesperrt. Bitte später erneut versuchen.", 429);
-  if (!state) {
-    state = { failures: 0, since: now, lockUntil: 0, level: 0, last: now };
-    attempts.set(shop, state);
-  }
-  if (now - state.since >= WINDOW_MS || (state.lockUntil && state.lockUntil <= now)) {
-    state.failures = 0;
-    state.since = now;
-    state.lockUntil = 0;
-  }
-  state.last = now;
   const expected = process.env.VAULT_MASTER_PASSWORD || process.env.AETHERION_VAULT_KEY || "";
   const actualHash = createHash("sha256").update(password).digest();
   const expectedHash = createHash("sha256").update(expected).digest();
-  if (!timingSafeEqual(actualHash, expectedHash)) {
-    state.failures++;
-    if (state.failures >= 5) {
-      state.lockUntil = now + LOCKS_MS[Math.min(state.level, LOCKS_MS.length - 1)];
-      state.level++;
+  const matches = timingSafeEqual(actualHash, expectedHash);
+  const result = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(1096043604, 1447842893)::text`;
+    const failures = await tx.autopilotLog.count({
+      where: {
+        shop: { in: getOwnerShopDomains(process.env.OWNER_SHOP_DOMAIN) },
+        action: "owner_vault_unlock_failed",
+        createdAt: { gte: new Date(now - WINDOW_MS) },
+      },
+    });
+    if (failures >= 5) return "locked";
+    if (!matches) {
+      await tx.autopilotLog.create({
+        data: { ...vaultAuditData(shop, "unlock_failed", failures === 4 ? "locked" : "denied"), createdAt: new Date(now) },
+      });
+      return failures === 4 ? "locked" : "denied";
     }
-    await auditVaultAction(shop, "unlock_failed", state.lockUntil > now ? "locked" : "denied");
-    throw new VaultAuthError(state.lockUntil > now ? "Zu viele Fehlversuche. Tresor vorübergehend gesperrt." : "General-Passwort ist falsch.", state.lockUntil > now ? 429 : 401);
-  }
-  if (sessions.size >= MAX_SESSIONS) throw new VaultAuthError("Zu viele Tresorsitzungen.", 503);
-  await auditVaultAction(shop, "unlock", "completed");
-  attempts.delete(shop);
+    await tx.autopilotLog.create({ data: { ...vaultAuditData(shop, "unlock", "completed"), createdAt: new Date(now) } });
+    return "ok";
+  }, { isolationLevel: "ReadCommitted" });
+  if (result === "locked") throw new VaultAuthError("Zu viele Fehlversuche in den letzten 15 Minuten. Bitte später erneut versuchen.", 429);
+  if (result === "denied") throw new VaultAuthError("General-Passwort ist falsch.", 401);
+}
+
+export async function unlockOwnerVault(shop: string, session: string, password: string, now = Date.now()) {
+  if (!session) throw new VaultAuthError("Shopify-Sitzung fehlt.", 403);
+  await verifyOwnerVaultPassword(shop, password, now);
   const id = randomBytes(32).toString("base64url");
-  sessions.set(id, { shop, session, expires: now + IDLE_MS });
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(1096043604, 1447842895)::text`;
+    const active = await tx.autopilotLog.count({
+      where: { shop, action: "owner_vault_cockpit_session", status: "active", createdAt: { gte: new Date(now - IDLE_MS + 1) } },
+    });
+    if (active >= MAX_SESSIONS) throw new VaultAuthError("Zu viele Tresorsitzungen.", 503);
+    await tx.autopilotLog.create({
+      data: {
+        id: createHash("sha256").update(id).digest("hex"),
+        shop,
+        action: "owner_vault_cockpit_session",
+        status: "active",
+        detail: cockpitSessionDetail(session),
+        undoable: false,
+        createdAt: new Date(now),
+      },
+    });
+  }, { isolationLevel: "ReadCommitted" });
   return `${id}.${signature(id)}`;
 }
 
-export function requireVaultSession(token: string, shop: string, session: string, now = Date.now()) {
-  clean(now);
+async function updateCockpitSession(token: string, shop: string, session: string, revoke: boolean, now: number) {
   const [id, sig, extra] = token.split(".");
   if (!id || !sig || extra || !/^[A-Za-z0-9_-]{43}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(sig)) {
     throw new VaultAuthError("Tresor ist gesperrt.");
   }
-  const supplied = Buffer.from(sig, "base64url");
-  const expected = Buffer.from(signature(id), "base64url");
+  const supplied = Buffer.from(sig, "ascii");
+  const expected = Buffer.from(signature(id), "ascii");
   if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) throw new VaultAuthError("Tresor ist gesperrt.");
-  const entry = sessions.get(id);
-  if (!entry || entry.shop !== shop || entry.session !== session || entry.expires <= now) {
+  const result = await db.autopilotLog.updateMany({
+    where: {
+      id: createHash("sha256").update(id).digest("hex"),
+      shop,
+      action: "owner_vault_cockpit_session",
+      status: "active",
+      detail: cockpitSessionDetail(session),
+      createdAt: { gt: new Date(now - IDLE_MS) },
+    },
+    data: revoke ? { status: "revoked" } : { createdAt: new Date(now) },
+  });
+  if (result.count !== 1) {
     throw new VaultAuthError("Tresorsitzung abgelaufen. Bitte erneut entsperren.");
   }
-  entry.expires = now + IDLE_MS;
-  return id;
 }
 
-export function lockOwnerVault(token: string, shop: string, session: string) {
-  sessions.delete(requireVaultSession(token, shop, session));
+export async function requireVaultSession(token: string, shop: string, session: string, now = Date.now()) {
+  await updateCockpitSession(token, shop, session, false, now);
+}
+
+export async function lockOwnerVault(token: string, shop: string, session: string) {
+  await updateCockpitSession(token, shop, session, true, Date.now());
 }
