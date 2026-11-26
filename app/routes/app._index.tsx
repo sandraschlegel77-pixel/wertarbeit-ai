@@ -572,6 +572,8 @@ export default function AppIndex() {
               />
               <PriceConfigurator
                 isOwner={d.owner}
+                canRunModuleWorkflows={d.canRunModuleWorkflows}
+                activeModules={d.activeModules}
                 selectedModules={selectedModules}
                 onSelectedModulesChange={setSelectedModules}
               />

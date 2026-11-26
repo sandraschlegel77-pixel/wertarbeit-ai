@@ -15,6 +15,7 @@ import { getSubscriberWishSnapshot, getWorkspaceChannelConfigs } from "./marketp
 import { getAccessibleDepartmentIds, moduleIdsFromSubscription, OWNER_MODULE_IDS } from "./module-access";
 import { getRecentLiveConnectionTraces } from "./live-connection.server";
 import { isApprovalException } from "./approval-exceptions";
+import { isConfiguredOwnerShop } from "./access-control-core";
 
 import type { ShopifyAdmin } from "./admin-types";
 import type { EarningsSummary } from "./agent-types";
@@ -212,6 +213,7 @@ export async function loadDashboard(shop: string, admin: Admin) {
   return {
     shop,
     owner,
+    canRunModuleWorkflows: isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN),
     paused,
     executivePulse: owner ? executivePulse : [],
     preparationDesk: visiblePreparationDesk,

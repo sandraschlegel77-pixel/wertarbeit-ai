@@ -4,13 +4,45 @@ import { BUILDING_MODULES, ALL_IN_ONE_PRICE, calcQuote } from "../../services/pr
 import { InfoPop } from "./InfoPop";
 import { C, badge, btn, btnGold, card, eur, grid } from "./theme";
 
+function ModuleWorkflow({ moduleId }: { moduleId: string }) {
+  const fetcher = useFetcher<{ ok?: boolean; message?: string; moduleId?: string; provider?: string }>();
+  const result = fetcher.data;
+
+  return (
+    <>
+      <fetcher.Form method="post">
+        <input type="hidden" name="type" value="run_module_workflow" />
+        <input type="hidden" name="moduleId" value={moduleId} />
+        <button type="submit" style={btn} disabled={fetcher.state !== "idle"}>
+          {fetcher.state !== "idle" ? "Prüfliste wird erstellt…" : "Prüfliste erstellen"}
+        </button>
+      </fetcher.Form>
+      {result?.message && (
+        <div role={result.ok ? "status" : "alert"} style={{ fontSize: 12, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          {result.ok && (
+            <strong style={{ color: C.champagne }}>
+              Unverbindlicher, ungeprüfter Entwurf · Modul {result.moduleId} · Anbieter: {result.provider}
+              {"\n"}
+            </strong>
+          )}
+          {result.message}
+        </div>
+      )}
+    </>
+  );
+}
+
 /** Live-Baukasten-Preisrechner inkl. 1-Klick-Aktivierung (Shopify Billing API). */
 export function PriceConfigurator({
   isOwner,
+  canRunModuleWorkflows,
+  activeModules,
   selectedModules,
   onSelectedModulesChange,
 }: {
   isOwner: boolean;
+  canRunModuleWorkflows: boolean;
+  activeModules: string[];
   selectedModules: string[];
   onSelectedModulesChange: (modules: string[]) => void;
 }) {
@@ -49,23 +81,26 @@ export function PriceConfigurator({
         {BUILDING_MODULES.map((m, i) => {
           const on = selectedModules.includes(m.id);
           return (
-            <label
+            <div
               key={m.id}
-              style={{ ...card, padding: 10, cursor: "pointer", borderColor: on ? C.gold : C.line, display: "grid", gap: 4 }}
+              style={{ ...card, padding: 10, borderColor: on ? C.gold : C.line, display: "grid", gap: 4 }}
             >
-              <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span>
-                  <input type="checkbox" checked={on} onChange={() => toggle(m.id)} /> <strong>Modul {i + 1}</strong>
+              <label style={{ cursor: "pointer", display: "grid", gap: 4 }}>
+                <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span>
+                    <input type="checkbox" checked={on} onChange={() => toggle(m.id)} /> <strong>Modul {i + 1}</strong>
+                  </span>
+                  <InfoPop title={m.label}>
+                    <div>{m.description}</div>
+                    <div style={{ marginTop: 6, color: C.champagne }}>Ersparnis: {m.savingsPerMonth}</div>
+                    <div style={{ marginTop: 6 }}>Preis: <strong>{eur(m.priceEur)}</strong> / Monat</div>
+                  </InfoPop>
                 </span>
-                <InfoPop title={m.label}>
-                  <div>{m.description}</div>
-                  <div style={{ marginTop: 6, color: C.champagne }}>Ersparnis: {m.savingsPerMonth}</div>
-                  <div style={{ marginTop: 6 }}>Preis: <strong>{eur(m.priceEur)}</strong> / Monat</div>
-                </InfoPop>
-              </span>
-              <span style={{ fontSize: 12, color: C.muted }}>{m.short}</span>
-              <span style={{ color: C.gold, fontWeight: 700 }}>{eur(m.priceEur)} / Monat</span>
-            </label>
+                <span style={{ fontSize: 12, color: C.muted }}>{m.short}</span>
+                <span style={{ color: C.gold, fontWeight: 700 }}>{eur(m.priceEur)} / Monat</span>
+              </label>
+              {canRunModuleWorkflows && activeModules.includes(m.id) && <ModuleWorkflow moduleId={m.id} />}
+            </div>
           );
         })}
       </div>

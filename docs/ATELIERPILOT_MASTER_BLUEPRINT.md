@@ -516,7 +516,7 @@ Telefonnummer, gegebenenfalls Register-/Vertretungsangaben, Datenschutzbeauftrag
 ## 26. Etappe 4: fachbezogene Modul-Entwürfe
 
 - `runModuleWorkflow` erstellt für m1 Listing-/Medien-, m2 Rechnungs-, m3 Kommunikations-, m4 Multichannel-, m5 Werkstatt-/Nachweis- und m6 Markt-Recherche-Checklisten. Es werden keine Shopdaten abgerufen, keine Quellen recherchiert und keine externen Aktionen ausgeführt; die Ergebnisse sind Entwürfe zur menschlichen Prüfung.
-- Die bestehende authentifizierte Dashboard-Action akzeptiert `type=run_module_workflow` und `moduleId=m1` bis `m6`. Es gibt dafür derzeit kein Bedienelement: Die bestehenden Modul-Kacheln wählen oder buchen Module und werden nicht umgedeutet.
+- Die bestehende authentifizierte Dashboard-Action akzeptiert `type=run_module_workflow` und `moduleId=m1` bis `m6`. Auf aktiven Modul-Kacheln ausdrücklich konfigurierter Inhaber-Shops erstellt ein separater Button eine unverbindliche Prüfliste; die Modulauswahl und Buchung bleiben getrennt. Ergebnis, Modul und Anbieter werden je Kachel angezeigt; Fehler werden nicht als Entwurf ausgegeben.
 - Jeder Lauf nutzt den Modul-Audit-Wrapper. Bei deaktivierter oder nicht verfügbarer Cloud liefert er die deterministische lokale Prüfliste und protokolliert deren Metadaten; die Ursache bleibt im Ergebnis sichtbar. Der Hash schützt nur die Metadaten, nicht den Inhalt.
 - Bis Shopify-Abobestätigung und Modulzuordnung verlässlich nachgewiesen werden, sind diese neuen Workflows für Subscriber gesperrt, auch wenn lokale Flags aktiv sind. Owner-Zugriff erfordert weiterhin die explizite Konfiguration der jeweiligen Domain in `OWNER_SHOP_DOMAIN`; die fest hinterlegten Domains allein reichen hierfür nicht.
 
