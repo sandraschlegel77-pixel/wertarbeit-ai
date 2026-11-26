@@ -46,7 +46,7 @@ export function moduleIdsFromSubscription(subscription: {
   moduleMultichannel?: boolean | null;
   moduleGrowth?: boolean | null;
 } | null): string[] {
-  if (!subscription || subscription.active === false) return [];
+  if (!subscription || subscription.active !== true) return [];
   return [
     subscription.moduleInvoices ? "m2" : null,
     subscription.moduleCertificates ? "m5" : null,

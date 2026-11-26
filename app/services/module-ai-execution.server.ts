@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import db from "../db.server";
-import { isOwnerShop } from "./access-control.server";
+import { requireModuleAccess } from "./access-control.server";
 import { isShopPaused } from "./autopilot-control.server";
 import { routeAiCompletion, type CompletionInput, type RoutedCompletion } from "./ai-provider-router.server";
-import { moduleIdsFromSubscription, OWNER_MODULE_IDS } from "./module-access";
+import { OWNER_MODULE_IDS } from "./module-access";
 
 type ModuleId = (typeof OWNER_MODULE_IDS)[number];
 type AuditScope = ModuleId | "meta-supervisor";
@@ -91,13 +91,7 @@ async function auditedCompletion(shop: string, scope: AuditScope, input: Complet
 export async function executeModuleWithAudit(input: CompletionInput & { shop: string; moduleId: string }): Promise<RoutedCompletion> {
   const moduleId = OWNER_MODULE_IDS.find((id) => id === input.moduleId);
   if (!moduleId) throw new Error("AI_MODULE_INVALID");
-  if (!isOwnerShop(input.shop)) {
-    const subscription = await db.shopSubscription.findUnique({
-      where: { shop: input.shop },
-      select: { active: true, moduleInvoices: true, moduleCertificates: true, moduleMultichannel: true, moduleGrowth: true },
-    });
-    if (!moduleIdsFromSubscription(subscription).includes(input.moduleId)) throw new Error("AI_MODULE_ACCESS_DENIED");
-  }
+  await requireModuleAccess(input.shop, moduleId);
   return auditedCompletion(input.shop, moduleId, input);
 }
 
