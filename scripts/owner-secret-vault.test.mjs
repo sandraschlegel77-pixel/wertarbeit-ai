@@ -523,17 +523,37 @@ test("vault AI candidates require explicit opt-in, preserve stage order and rema
   }
 });
 
+test("standalone origin check handles proxy hosts and browser form submissions without accepting cross-site requests", () => {
+  const allowed = (headers, url = "http://internal.invalid/vault") =>
+    standaloneAuth.standaloneOriginAllowed(new Request(url, { method: "POST", headers }));
+  assert.equal(allowed({ "x-forwarded-host": " Example.Invalid:443 ", host: "internal.invalid", origin: "https://example.invalid", "sec-fetch-site": "same-origin" }), true);
+  assert.equal(allowed({ host: "Example.Invalid:443", origin: "https://example.invalid" }), true);
+  assert.equal(allowed({ host: "example.invalid:8443", referer: "https://example.invalid:8443/vault", "sec-fetch-site": "same-origin" }), true);
+  assert.equal(allowed({ origin: "https://example.invalid" }, "https://example.invalid/vault"), true);
+  assert.equal(allowed({ "x-forwarded-host": "example.invalid", host: "internal.invalid", origin: "https://attacker.invalid" }), false);
+  assert.equal(allowed({ host: "example.invalid", referer: "https://attacker.invalid/vault" }), false);
+  assert.equal(allowed({ host: "example.invalid", origin: "https://example.invalid", "sec-fetch-site": "cross-site" }), false);
+  assert.equal(allowed({ host: "example.invalid", origin: "http://example.invalid" }), false);
+  assert.equal(allowed({ host: "example.invalid:8443", origin: "https://example.invalid" }), false);
+  assert.equal(allowed({ host: "example.invalid", origin: "null", referer: "https://example.invalid/vault" }), false);
+  assert.equal(allowed({ host: "example.invalid", origin: "https://example.invalid/path" }), false);
+  assert.equal(allowed({ "x-forwarded-host": "attacker.invalid, example.invalid", origin: "https://attacker.invalid" }), false);
+  assert.equal(allowed({ host: "example.invalid" }), false);
+});
+
 test("standalone access requires same-origin login, a signed revocable cookie and configured shops", async () => {
   const originalUrl = process.env.SHOPIFY_APP_URL;
   const originalOwnerShops = process.env.OWNER_SHOP_DOMAIN;
-  process.env.SHOPIFY_APP_URL = "https://example.invalid";
+  process.env.SHOPIFY_APP_URL = "https://different.invalid";
   process.env.OWNER_SHOP_DOMAIN = `${owner},${otherOwner}`;
   process.env.VAULT_MASTER_PASSWORD = "test-general-password";
   audit = [];
   const standaloneRequest = (fields, cookie, origin = "https://example.invalid") => {
     const body = new FormData();
     for (const [name, value] of Object.entries(fields)) body.set(name, value);
-    return new Request("https://example.invalid/vault", { method: "POST", body, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}) } });
+    return new Request("http://internal.invalid/vault", { method: "POST", body, headers: {
+      Host: "internal.invalid", "X-Forwarded-Host": "example.invalid", Origin: origin, ...(cookie ? { Cookie: cookie } : {}),
+    } });
   };
   try {
     const blocked = await standalone.action({ request: standaloneRequest({ type: "unlock", password: "test-general-password" }, null, "https://attacker.invalid") });

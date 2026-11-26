@@ -20,12 +20,20 @@ export function standaloneOwnerShops() {
 }
 
 export function standaloneOriginAllowed(request: Request) {
-  const configured = process.env.SHOPIFY_APP_URL;
-  if (!configured) return false;
+  const fetchSite = request.headers.get("Sec-Fetch-Site");
+  if (fetchSite && fetchSite !== "same-origin") return false;
+
+  const host = (request.headers.get("X-Forwarded-Host") ?? request.headers.get("Host") ?? new URL(request.url).host).trim();
+  if (!/^[a-z\d.:[\]-]+$/i.test(host)) return false;
   try {
-    const url = new URL(configured);
-    return url.protocol === "https:" && !url.username && !url.password &&
-      request.headers.get("Origin") === url.origin;
+    const target = new URL(`https://${host}`);
+    const origin = request.headers.get("Origin");
+    const source = origin ?? request.headers.get("Referer");
+    if (!source) return false;
+    const url = new URL(source);
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    if (origin && (url.pathname !== "/" || url.search || url.hash)) return false;
+    return url.origin === target.origin;
   } catch {
     return false;
   }
