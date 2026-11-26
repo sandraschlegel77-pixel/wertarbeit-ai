@@ -31,7 +31,7 @@ export function getConfiguredAiProviderSlots() {
   };
 }
 
-export async function routeAiCompletion(input: CompletionInput): Promise<RoutedCompletion> {
+export async function routeAiCompletion(input: CompletionInput, vaultCandidates: Array<{ apiKey: string; model: string }> = []): Promise<RoutedCompletion> {
   if (!Number.isInteger(input.maxTokens) || input.maxTokens < 1 || input.maxTokens > 4096) {
     throw new Error("AI_MAX_TOKENS_INVALID");
   }
@@ -67,6 +67,43 @@ export async function routeAiCompletion(input: CompletionInput): Promise<RoutedC
       const reason = error instanceof Error && /^HTTP_\d{3}$|^EMPTY_RESPONSE$/.test(error.message)
         ? error.message : "REQUEST_FAILED";
       failures.push(`openrouter/${candidate.model}: ${reason}`);
+    }
+  }
+
+  if (!candidate && process.env.AI_CLOUD_ENABLED === "true") {
+    const started = performance.now();
+    for (const vault of vaultCandidates.slice(0, 6)) {
+      const remaining = Math.floor(7_000 - (performance.now() - started));
+      if (remaining <= 0) { failures.push("Tresor-Fallback: Zeitbudget erschöpft."); break; }
+      if (!vault.apiKey || !isFreeOpenRouterModel(vault.model)) {
+        failures.push("Tresor-Fallback: nicht zugelassenes Modell.");
+        continue;
+      }
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${vault.apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: vault.model,
+            messages,
+            temperature: 0,
+            max_tokens: input.maxTokens,
+            response_format: { type: "json_object" },
+            provider: ZERO_PRICE_PROVIDER,
+          }),
+          signal: AbortSignal.timeout(remaining),
+          redirect: "error",
+        });
+        if (!response.ok) throw new Error(`HTTP_${response.status}`);
+        const result: unknown = await response.json();
+        const text = (result as { choices?: { message?: { content?: unknown } }[] } | null)?.choices?.[0]?.message?.content;
+        if (typeof text !== "string" || !text) throw new Error("EMPTY_RESPONSE");
+        return { ok: true, provider: "openrouter", model: vault.model, text, failures };
+      } catch (error) {
+        const reason = error instanceof Error && /^HTTP_\d{3}$|^EMPTY_RESPONSE$/.test(error.message)
+          ? error.message : "REQUEST_FAILED";
+        failures.push(`Tresor-Fallback/${vault.model}: ${reason}`);
+      }
     }
   }
 

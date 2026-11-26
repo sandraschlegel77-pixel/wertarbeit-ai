@@ -21,6 +21,9 @@ let failFinish = false;
 let paused = false;
 let subscription = null;
 let subscriptionShop;
+let vaultAllowed = false;
+let vaultReads = 0;
+let lastVaultCandidates = [];
 const db = {
   autopilotLog: {
     async create({ data }) {
@@ -48,9 +51,18 @@ Module._load = function (request, parent, isMain) {
   if (parent?.filename.endsWith("module-ai-execution.server.ts")) {
     if (request === "../db.server") return { __esModule: true, default: db };
     if (request === "./autopilot-control.server") return { isShopPaused: async () => paused };
+    if (request === "./owner-vault.server") return {
+      canAccessOwnerVault: (shop) => shop === "owner.myshopify.com",
+      getOwnerVaultFreeCandidates: async () => {
+        vaultReads++;
+        return [{ apiKey: "test-vault-key", model: "example/model:free" }];
+      },
+    };
+    if (request === "./owner-vault-policy.server") return { vaultCloudExecutionAllowed: async () => vaultAllowed };
     if (request === "./ai-provider-router.server") return {
-      routeAiCompletion: async () => {
+      routeAiCompletion: async (_input, candidates) => {
         calls++;
+        lastVaultCandidates = candidates;
         return { ok: true, provider: "openrouter", model: "openrouter/free", text: "private response", failures: [] };
       },
     };
@@ -79,6 +91,37 @@ test("module and supervisor calls create shop-scoped verifiable metadata hashes 
   rows = [];
   await executeMetaSupervisorWithAudit({ ...prompt, shop: "owner.myshopify.com" });
   assert.equal(JSON.parse(rows[1].detail).metadata.scope, "meta-supervisor");
+});
+
+test("vault fallback is limited to authorized owners, enabled policy and missing environment key", async () => {
+  const originalVaultKey = process.env.AETHERION_VAULT_KEY;
+  const originalOpenRouter = process.env.OPENROUTER_API_KEY;
+  process.env.AETHERION_VAULT_KEY = "test-key";
+  delete process.env.OPENROUTER_API_KEY;
+  vaultAllowed = true;
+  vaultReads = 0;
+  subscription = { active: true, moduleInvoices: true };
+  try {
+    await executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m1" });
+    assert.equal(vaultReads, 1);
+    assert.deepEqual(lastVaultCandidates, [{ apiKey: "test-vault-key", model: "example/model:free" }]);
+    await executeModuleWithAudit({ ...prompt, shop: "subscriber.myshopify.com", moduleId: "m2" });
+    assert.equal(vaultReads, 1);
+    assert.deepEqual(lastVaultCandidates, []);
+    vaultAllowed = false;
+    await executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m1" });
+    assert.equal(vaultReads, 1);
+    assert.deepEqual(lastVaultCandidates, []);
+    vaultAllowed = true;
+    process.env.OPENROUTER_API_KEY = "test-env-key";
+    await executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m1" });
+    assert.equal(vaultReads, 1);
+    assert.deepEqual(lastVaultCandidates, []);
+  } finally {
+    vaultAllowed = false;
+    if (originalVaultKey === undefined) delete process.env.AETHERION_VAULT_KEY; else process.env.AETHERION_VAULT_KEY = originalVaultKey;
+    if (originalOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = originalOpenRouter;
+  }
 });
 
 test("subscriber access follows only active, shop-scoped module flags", async () => {

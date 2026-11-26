@@ -4,6 +4,8 @@ import { requireModuleAccess } from "./access-control.server";
 import { isShopPaused } from "./autopilot-control.server";
 import { routeAiCompletion, type CompletionInput, type RoutedCompletion } from "./ai-provider-router.server";
 import { OWNER_MODULE_IDS } from "./module-access";
+import { canAccessOwnerVault, getOwnerVaultFreeCandidates } from "./owner-vault.server";
+import { vaultCloudExecutionAllowed } from "./owner-vault-policy.server";
 
 type ModuleId = (typeof OWNER_MODULE_IDS)[number];
 type AuditScope = ModuleId | "meta-supervisor";
@@ -55,9 +57,17 @@ async function auditedCompletion(
 
   let result: RoutedCompletion;
   try {
-    result = localOnly && offlineFallback
-      ? { ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback, failures: [] }
-      : await routeAiCompletion(input);
+    if (localOnly && offlineFallback) {
+      result = { ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback, failures: [] };
+    } else {
+      const vaultCandidates = !process.env.OPENROUTER_API_KEY?.trim() &&
+        !!process.env.AETHERION_VAULT_KEY &&
+        canAccessOwnerVault(shop) &&
+        await vaultCloudExecutionAllowed(shop, "ai-fallback")
+        ? await getOwnerVaultFreeCandidates(shop)
+        : [];
+      result = await routeAiCompletion(input, vaultCandidates);
+    }
     if (!result.ok && offlineFallback) {
       result = { ...result, ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback };
     }
