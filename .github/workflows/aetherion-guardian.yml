@@ -33,7 +33,7 @@ jobs:
           path: neon_backup_*.sql.gz
           retention-days: 30
 
-      - name: 4. Push-Statusbericht & RESCUE-112 Alarm senden (ntfy)
+      - name: 4. Push-Statusbericht & RESCUE-112 Alarm senden (via Cloudflare Edge)
         if: always()
         env:
           TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -41,12 +41,31 @@ jobs:
           BACKUP1_STATUS: ${{ steps.health.outputs.backup1 }}
           EDGE_STATUS: ${{ steps.health.outputs.edge }}
         run: |
-          if [ "$PRIMARY_STATUS" != "200" ] || [ "$EDGE_STATUS" != "200" ]; then
-            curl -s -H "Title: RESCUE-112 ALARM" -H "Priority: urgent" -H "Tags: rotating_light" \
-              -d "Primary: ${PRIMARY_STATUS} | Backup1: ${BACKUP1_STATUS} | Edge: ${EDGE_STATUS}" \
-              "https://ntfy.sh{TOPIC}"
-          else
-            curl -s -H "Title: AETHERION GUARDIAN OK" -H "Tags: white_check_mark" \
-              -d "Primary: 200 | Backup1: ${BACKUP1_STATUS} | Edge: 200 | DB-Backup: Gesichert" \
-              "https://ntfy.sh{TOPIC}"
-          fi
+          python3 - <<'EOF'
+          import os, json, urllib.request
+
+          topic = (os.environ.get("TOPIC") or "").strip()
+          p = os.environ.get("PRIMARY_STATUS", "000")
+          b1 = os.environ.get("BACKUP1_STATUS", "000")
+          e = os.environ.get("EDGE_STATUS", "000")
+
+          if not topic:
+              raise SystemExit("NTFY_TOPIC fehlt in den GitHub Repository Secrets.")
+
+          is_alert = (p != "200" or e != "200")
+          payload = {
+              "topic": topic,
+              "title": "RESCUE-112 ALARM" if is_alert else "AETHERION GUARDIAN OK",
+              "tags": "rotating_light" if is_alert else "white_check_mark",
+              "message": f"Primary: {p} | Backup1: {b1} | Edge: {e} | DB-Backup: Gesichert"
+          }
+
+          req = urllib.request.Request(
+              "https://workers.dev",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST"
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("Relay Status:", resp.status)
+          EOF
