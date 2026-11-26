@@ -1,13 +1,41 @@
 import { randomUUID } from "node:crypto";
 import db from "../db.server";
-import { isCanonicalOwnerShop, isConfiguredOwnerShop } from "./access-control-core";
+import { isConfiguredOwnerShop } from "./access-control-core";
 import { encryptVaultBlob } from "./aetherion-vault.server";
 
 export function canAccessOwnerVault(shop: string): boolean {
-  return isCanonicalOwnerShop(shop) && isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN);
+  return isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN);
 }
 
 export class OwnerVaultInputError extends Error {}
+
+let vaultTableReady: Promise<void> | undefined;
+
+export function ensureVaultTable(): Promise<void> {
+  if (!vaultTableReady) {
+    vaultTableReady = db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(1096043604, 1447842892)::text`;
+      await tx.$executeRaw`
+        CREATE TABLE IF NOT EXISTS "OwnerVaultSecret" (
+          "id" TEXT NOT NULL,
+          "shop" TEXT NOT NULL,
+          "label" TEXT NOT NULL,
+          "ciphertext" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "OwnerVaultSecret_pkey" PRIMARY KEY ("id")
+        )
+      `;
+      await tx.$executeRaw`
+        CREATE INDEX IF NOT EXISTS "OwnerVaultSecret_shop_createdAt_idx"
+        ON "OwnerVaultSecret"("shop", "createdAt")
+      `;
+    }).catch((error: unknown) => {
+      vaultTableReady = undefined;
+      throw error;
+    });
+  }
+  return vaultTableReady;
+}
 
 function requireAccess(shop: string) {
   if (!canAccessOwnerVault(shop)) throw new OwnerVaultInputError("Tresorzugriff nicht erlaubt.");
@@ -23,6 +51,7 @@ function key() {
 
 export async function listOwnerVaultSecrets(shop: string) {
   requireAccess(shop);
+  await ensureVaultTable();
   const entries = await db.ownerVaultSecret.findMany({
     where: { shop },
     select: { id: true, label: true, createdAt: true },
@@ -46,6 +75,7 @@ export async function saveOwnerVaultSecret(shop: string, label: string, value: s
   }
   const id = randomUUID();
   const ciphertext = encryptVaultBlob(value, key(), `${shop}:${id}`);
+  await ensureVaultTable();
   await db.$transaction(async (tx) => {
     if (await tx.ownerVaultSecret.count({ where: { shop } }) >= 100) {
       throw new OwnerVaultInputError("Der Tresor enthält bereits 100 Einträge. Bitte zuerst einen Eintrag löschen.");
@@ -59,6 +89,7 @@ export async function deleteOwnerVaultSecret(shop: string, id: string) {
   if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id)) {
     throw new OwnerVaultInputError("Ungültiger Tresoreintrag.");
   }
+  await ensureVaultTable();
   const result = await db.ownerVaultSecret.deleteMany({ where: { shop, id } });
   if (result.count !== 1) throw new OwnerVaultInputError("Tresoreintrag nicht gefunden.");
 }

@@ -44,7 +44,7 @@ interface SingularityCockpitLayoutProps {
   allowedDepartmentIds: number[];
   onPickDept: (id: number) => void;
   onSelectModule: (moduleId: string) => void;
-  canAccessSecretVault: boolean;
+  showSecretVault: boolean;
   modulePanel: ReactNode;
   onOpenTeam: () => void;
   onOpenPlatforms: () => void;
@@ -62,7 +62,7 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
     allowedDepartmentIds,
     onPickDept,
     onSelectModule,
-    canAccessSecretVault,
+    showSecretVault,
     modulePanel,
     onOpenTeam,
     onOpenPlatforms,
@@ -169,7 +169,7 @@ export function SingularityCockpitLayout(props: SingularityCockpitLayoutProps) {
           <section style={card}>
             <button type="button" style={btn} onClick={onOpenTeam}>Belegschaft &amp; Akademie öffnen</button>
           </section>
-          {canAccessSecretVault && <OwnerSecretVault />}
+          {showSecretVault && <OwnerSecretVault />}
         </>}
         {sector === "sector4" && <>
           <section style={card}>
