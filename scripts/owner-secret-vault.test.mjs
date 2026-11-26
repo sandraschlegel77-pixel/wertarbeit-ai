@@ -18,7 +18,18 @@ const owner = "wertarbeitmanufaktur.myshopify.com";
 const otherOwner = "wertarbeit-testshop.myshopify.com";
 let sessionShop = owner;
 let rows = [];
+let initializationAttempts = 0;
+let failInitialization = false;
+let ddl = [];
 const db = {
+  async $queryRaw(strings) {
+    assert.match(strings.join(""), /pg_advisory_xact_lock/);
+  },
+  async $executeRaw(strings) {
+    const sql = strings.join("");
+    ddl.push(sql);
+    if (failInitialization) throw new Error("DDL unavailable");
+  },
   ownerVaultSecret: {
     async count({ where }) { return rows.filter((row) => row.shop === where.shop).length; },
     async create({ data }) { rows.push({ ...data, createdAt: new Date() }); },
@@ -33,7 +44,8 @@ const db = {
     },
   },
   async $transaction(callback, options) {
-    assert.equal(options.isolationLevel, "Serializable");
+    if (options) assert.equal(options.isolationLevel, "Serializable");
+    else initializationAttempts++;
     return callback(this);
   },
 };
@@ -67,16 +79,38 @@ function request(fields) {
   return new Request("https://example.invalid/api/owner-vault", { method: "POST", body });
 }
 
-test("vault requires a canonical shop that is also explicitly configured", async () => {
+test("vault access requires an explicitly configured owner shop", async () => {
   process.env.OWNER_SHOP_DOMAIN = `${owner},custom.myshopify.com`;
   assert.equal(service.canAccessOwnerVault(owner), true);
   assert.equal(service.canAccessOwnerVault(otherOwner), false);
-  assert.equal(service.canAccessOwnerVault("custom.myshopify.com"), false);
+  assert.equal(service.canAccessOwnerVault("custom.myshopify.com"), true);
   assert.equal(service.canAccessOwnerVault(`${owner}.evil.example`), false);
-  sessionShop = "custom.myshopify.com";
+  sessionShop = otherOwner;
   assert.equal((await route.loader({ request: new Request("https://example.invalid/api/owner-vault") })).status, 403);
   assert.equal((await route.action({ request: request({ type: "save", label: "Test", value: "placeholder" }) })).status, 403);
   assert.equal(rows.length, 0);
+  assert.equal(initializationAttempts, 0);
+});
+
+test("failed initialization is reported and concurrent first writes retry only once", async () => {
+  sessionShop = owner;
+  process.env.OWNER_SHOP_DOMAIN = owner;
+  failInitialization = true;
+  const failed = await route.loader({ request: new Request("https://example.invalid/api/owner-vault") });
+  assert.equal(failed.status, 503);
+  failInitialization = false;
+  ddl = [];
+  process.env.AETHERION_VAULT_KEY = randomBytes(32).toString("hex");
+  await Promise.all([
+    service.saveOwnerVaultSecret(owner, "Test 1", "placeholder"),
+    service.saveOwnerVaultSecret(owner, "Test 2", "placeholder"),
+  ]);
+  assert.equal((await service.listOwnerVaultSecrets(owner)).entries.length, 2);
+  assert.equal(initializationAttempts, 2);
+  assert.equal(ddl.length, 2);
+  assert.match(ddl[0], /CREATE TABLE IF NOT EXISTS "OwnerVaultSecret"/);
+  assert.match(ddl[1], /CREATE INDEX IF NOT EXISTS "OwnerVaultSecret_shop_createdAt_idx"/);
+  rows = [];
 });
 
 test("vault stores authenticated ciphertext and returns only shop-scoped masked-entry metadata", async () => {

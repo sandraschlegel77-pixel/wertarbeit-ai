@@ -472,7 +472,7 @@ export default function AppIndex() {
               allowedDepartmentIds={d.allowedDepartmentIds}
               onPickDept={pickDept}
               onSelectModule={selectModuleFromBoard}
-              canAccessSecretVault={d.canAccessSecretVault}
+              showSecretVault={d.owner}
               onOpenTeam={() => changeView("team")}
               onOpenPlatforms={() => changeView("platforms")}
               modulePanel={<PriceConfigurator

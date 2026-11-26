@@ -14,7 +14,7 @@ function json(body: unknown, status = 200) {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
-  if (!canAccessOwnerVault(session.shop)) return json({ ok: false, message: "Tresorzugriff nicht erlaubt." }, 403);
+  if (!canAccessOwnerVault(session.shop)) return json({ ok: false, message: "Tresorzugriff nicht erlaubt. Dieser Shop muss ausdrücklich in OWNER_SHOP_DOMAIN konfiguriert sein." }, 403);
   try {
     return json({ ok: true, ...await listOwnerVaultSecrets(session.shop) });
   } catch {

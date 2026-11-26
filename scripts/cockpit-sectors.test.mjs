@@ -53,7 +53,7 @@ Module._load = originalLoad;
 const props = {
   initialTraces: [], executivePulse: [], dynamicCount: 0, ownerShop: true, roster: [],
   earnings: {}, performance: {}, allowedDepartmentIds: [], onPickDept() {}, onSelectModule() {},
-  canAccessSecretVault: true, modulePanel: React.createElement("div", null, "module panel"),
+  showSecretVault: true, modulePanel: React.createElement("div", null, "module panel"),
   onOpenTeam() {}, onOpenPlatforms() {},
 };
 function render(overrides = {}) {
@@ -77,13 +77,14 @@ test("all five sector buttons change the active panel and mark the active item",
   assert.equal(shell.children.props.children[2], props.modulePanel);
 });
 
-test("the security sector only renders the vault for authorized shops", () => {
+test("the security sector renders the vault directly below the academy button for eligible shops", () => {
   states = [];
   let shell = render();
   shell.navItems[2].onClick();
   shell = render();
   const security = shell.children.props.children[3];
+  assert.equal(security.props.children[0].props.children.type, "button");
   assert.equal(security.props.children[1].type, Vault);
-  shell = render({ canAccessSecretVault: false });
+  shell = render({ showSecretVault: false });
   assert.equal(shell.children.props.children[3].props.children[1], false);
 });
