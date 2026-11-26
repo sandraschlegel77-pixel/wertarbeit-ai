@@ -119,6 +119,7 @@ test("module validation, subscription, pause and audit failures fail closed", as
   subscription = { active: true, moduleInvoices: true };
   await assert.rejects(() => executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m7" }), /AI_MODULE_INVALID/);
   await assert.rejects(() => executeModuleWithAudit({ ...prompt, shop: "subscriber.myshopify.com", moduleId: "m1" }), /AI_MODULE_ACCESS_DENIED/);
+  await assert.rejects(() => executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m1", localOnly: true }), /AI_LOCAL_FALLBACK_REQUIRED/);
   paused = true;
   await assert.rejects(() => executeModuleWithAudit({ ...prompt, shop: "owner.myshopify.com", moduleId: "m1" }), /GLOBAL_AI_PAUSE/);
   paused = false;

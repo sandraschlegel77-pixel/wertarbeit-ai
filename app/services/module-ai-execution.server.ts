@@ -21,7 +21,9 @@ async function auditedCompletion(
   scope: AuditScope,
   input: CompletionInput,
   offlineFallback?: string,
-): Promise<RoutedCompletion> {
+  localOnly = false,
+): Promise<RoutedCompletion & { auditLogId: string }> {
+  if (localOnly && !offlineFallback) throw new Error("AI_LOCAL_FALLBACK_REQUIRED");
   if (await isShopPaused(shop)) throw new Error("GLOBAL_AI_PAUSE");
   const executionId = randomUUID();
   const startedAt = new Date().toISOString();
@@ -53,7 +55,9 @@ async function auditedCompletion(
 
   let result: RoutedCompletion;
   try {
-    result = await routeAiCompletion(input);
+    result = localOnly && offlineFallback
+      ? { ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback, failures: [] }
+      : await routeAiCompletion(input);
     if (!result.ok && offlineFallback) {
       result = { ...result, ok: true, provider: "local", model: "deterministic-local-rules", text: offlineFallback };
     }
@@ -93,14 +97,14 @@ async function auditedCompletion(
     console.error("[ai-audit] Ergebnisprotokoll konnte nicht gespeichert werden; Ergebnis wird nicht freigegeben.");
     throw new Error("AI_AUDIT_FINISH_FAILED");
   }
-  return result;
+  return { ...result, auditLogId: logId };
 }
 
-export async function executeModuleWithAudit(input: CompletionInput & { shop: string; moduleId: string; offlineFallback?: string }): Promise<RoutedCompletion> {
+export async function executeModuleWithAudit(input: CompletionInput & { shop: string; moduleId: string; offlineFallback?: string; localOnly?: boolean }) {
   const moduleId = OWNER_MODULE_IDS.find((id) => id === input.moduleId);
   if (!moduleId) throw new Error("AI_MODULE_INVALID");
   await requireModuleAccess(input.shop, moduleId);
-  return auditedCompletion(input.shop, moduleId, input, input.offlineFallback);
+  return auditedCompletion(input.shop, moduleId, input, input.offlineFallback, input.localOnly);
 }
 
 export async function executeMetaSupervisorWithAudit(input: CompletionInput & { shop: string }): Promise<RoutedCompletion> {

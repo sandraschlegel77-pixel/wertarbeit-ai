@@ -128,6 +128,7 @@ function LeftNav({ navItems }: { navItems: ShellNavigationItem[] }) {
           <button
             key={item.id}
             type="button"
+            aria-current={item.active ? "page" : undefined}
             style={{
               width: "100%",
               textAlign: "left",

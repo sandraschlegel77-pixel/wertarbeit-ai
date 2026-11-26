@@ -31,7 +31,7 @@ const workflows: Record<ModuleId, { task: string; offline: string }> = {
   },
 };
 
-export async function runModuleWorkflow(shop: string, moduleId: string) {
+export async function runModuleWorkflow(shop: string, moduleId: string, options?: { localOnly?: boolean }) {
   const id = OWNER_MODULE_IDS.find((candidate) => candidate === moduleId);
   if (!id) throw new Error("AI_MODULE_INVALID");
   if (!isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN)) {
@@ -45,6 +45,7 @@ export async function runModuleWorkflow(shop: string, moduleId: string) {
     userPrompt: workflow.task,
     maxTokens: 400,
     offlineFallback: workflow.offline,
+    localOnly: options?.localOnly,
   });
   return { moduleId: id, ...result };
 }
