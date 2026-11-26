@@ -30,3 +30,16 @@ jobs:
           name: aetherion-neon-backup-${{ github.run_number }}
           path: neon_backup_*.sql.gz
           retention-days: 30
+
+      - name: 4. Guardian-Status melden
+        if: ${{ always() && env.GUARDIAN_NOTIFY_URL != '' && env.NTFY_TOPIC != '' }}
+        env:
+          GUARDIAN_NOTIFY_URL: ${{ secrets.GUARDIAN_NOTIFY_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GUARDIAN_STATUS: ${{ job.status }}
+        run: |
+          jq -n --arg topic "$NTFY_TOPIC" --arg status "$GUARDIAN_STATUS" \
+            '{topic: $topic, title: "AETHERION GUARDIAN", tags: "shield", message: ("Guardian Status: " + $status)}' |
+            curl --fail --silent --show-error --max-time 15 --output /dev/null \
+              -H "Content-Type: application/json" \
+              --data-binary @- "$GUARDIAN_NOTIFY_URL"
