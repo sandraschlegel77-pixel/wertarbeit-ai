@@ -1,6 +1,6 @@
 import db from "../db.server";
 import { STAMM_AGENTS } from "./agent-roster";
-import { getAccessibleDepartmentIds, moduleIdsFromSubscription } from "./module-access";
+import { getAccessibleDepartmentIds, moduleIdsFromSubscription, OWNER_MODULE_IDS } from "./module-access";
 import { isCanonicalOwnerShop, isConfiguredOwnerShop } from "./access-control-core";
 
 export type ShopAccessRole = "OWNER" | "SUBSCRIBER";
@@ -28,6 +28,22 @@ export async function requireSubscriberShop(shop: string): Promise<void> {
   if (!subscription?.active) {
     throw new ShopAccessDeniedError("Für diese Funktion ist eine aktive Subscriber-Subscription erforderlich.");
   }
+}
+
+export async function requireModuleAccess(shop: string, moduleId: string): Promise<void> {
+  if (!OWNER_MODULE_IDS.some((id) => id === moduleId)) throw new Error("AI_MODULE_INVALID");
+  if (isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN)) return;
+  const subscription = await db.shopSubscription.findUnique({
+    where: { shop },
+    select: {
+      active: true,
+      moduleInvoices: true,
+      moduleCertificates: true,
+      moduleMultichannel: true,
+      moduleGrowth: true,
+    },
+  });
+  if (!moduleIdsFromSubscription(subscription).includes(moduleId)) throw new Error("AI_MODULE_ACCESS_DENIED");
 }
 
 export async function canAccessAgentForShop(shop: string, agentKey: string): Promise<boolean> {
