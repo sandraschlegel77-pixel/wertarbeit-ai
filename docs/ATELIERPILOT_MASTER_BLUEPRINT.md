@@ -495,3 +495,7 @@ Telefonnummer, gegebenenfalls Register-/Vertretungsangaben, Datenschutzbeauftrag
 - Tresor-PDFs/ZIPs entstehen auf Abruf aus vorhandenen Daten. Das Steuerberater-Paket enthält höchstens 500 neueste Datensätze je Liste und begrenzte, unverifizierte gespeicherte XML-/DATEV-Felder. Es ist kein DATEV-Buchungsstapel; das Rechnungsdatenblatt ist keine normkonforme ZUGFeRD-/XRechnung/PDF-A-3-Rechnung, das DPP-Dossier kein offizielles GRA-Zertifikat und die Chargeback-Datei eine leere Checkliste.
 - Neue Prisma-Modelle sind generiert, aber nicht in eine Datenbank gepusht: lokale `DATABASE_URL` fehlt. Vor Nutzung in PostgreSQL erst Datenbankziel und Backup bestätigen, dann Schema-Deployment durchführen.
 
+## 23. Guardian-Benachrichtigung
+
+- Der Guardian-Workflow sendet nach den bestehenden Prüfschritten und dem Backup den bisherigen Jobstatus als JSON, wenn beide GitHub-Actions-Secrets `GUARDIAN_NOTIFY_URL` und `NTFY_TOPIC` gesetzt sind. Ohne diese Secrets entfällt der Versand. Ein fehlgeschlagener Versand schlägt den Schritt fehl; die Benachrichtigung bestätigt weder eine erfolgreiche Wiederherstellung noch die Verfügbarkeit des Shops.
+
