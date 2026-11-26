@@ -33,45 +33,20 @@ jobs:
           path: neon_backup_*.sql.gz
           retention-days: 30
 
-      - name: 4. Telegram-Statusbericht & RESCUE-112 Alarm senden
+      - name: 4. Push-Statusbericht & RESCUE-112 Alarm senden (ntfy)
         if: always()
         env:
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TOPIC: ${{ secrets.NTFY_TOPIC }}
           PRIMARY_STATUS: ${{ steps.health.outputs.primary }}
           BACKUP1_STATUS: ${{ steps.health.outputs.backup1 }}
           EDGE_STATUS: ${{ steps.health.outputs.edge }}
         run: |
-          python3 - <<'EOF'
-          import os, urllib.request, urllib.parse
-
-          token = (os.environ.get("BOT_TOKEN") or "").strip()
-          if token.lower().startswith("bot"):
-              token = token[3:]
-          chat_id = (os.environ.get("CHAT_ID") or "").strip()
-          p = os.environ.get("PRIMARY_STATUS", "000")
-          b1 = os.environ.get("BACKUP1_STATUS", "000")
-          e = os.environ.get("EDGE_STATUS", "000")
-
-          if p != "200" or e != "200":
-              msg = (
-                  f"🚨 RESCUE-112 ALARM // AETHERION OMEGA\n"
-                  f"Primary (Render): {p}\n"
-                  f"Backup 1 (Vercel): {b1}\n"
-                  f"Edge-Router: {e}"
-              )
-          else:
-              msg = (
-                  f"✅ AETHERION NIGHTLY GUARDIAN OK\n"
-                  f"Primary (Render): 200\n"
-                  f"Backup 1 (Vercel): {b1}\n"
-                  f"Edge-Router: 200\n"
-                  f"Datenbank-Backup: Gesichert"
-              )
-
-          url = f"https://telegram.org{token}/sendMessage"
-          data = urllib.parse.urlencode({"chat_id": chat_id, "text": msg}).encode("utf-8")
-          req = urllib.request.Request(url, data=data, method="POST")
-          with urllib.request.urlopen(req, timeout=15) as resp:
-              print("Telegram HTTP Status:", resp.status)
-          EOF
+          if [ "$PRIMARY_STATUS" != "200" ] || [ "$EDGE_STATUS" != "200" ]; then
+            curl -s -H "Title: RESCUE-112 ALARM" -H "Priority: urgent" -H "Tags: rotating_light" \
+              -d "Primary: ${PRIMARY_STATUS} | Backup1: ${BACKUP1_STATUS} | Edge: ${EDGE_STATUS}" \
+              "https://ntfy.sh{TOPIC}"
+          else
+            curl -s -H "Title: AETHERION GUARDIAN OK" -H "Tags: white_check_mark" \
+              -d "Primary: 200 | Backup1: ${BACKUP1_STATUS} | Edge: 200 | DB-Backup: Gesichert" \
+              "https://ntfy.sh{TOPIC}"
+          fi
