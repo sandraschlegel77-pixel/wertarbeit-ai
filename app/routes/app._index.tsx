@@ -196,7 +196,8 @@ export default function AppIndex() {
   const view: ViewId = visibleViews.find((entry) => entry.id === requestedView)?.id
     ?? visibleViews.find((entry) => entry.id === requestedViewAlias)?.id
     ?? visibleViews.find((entry) => entry.id === legacyView)?.id
-    ?? "cockpit";
+    ?? visibleViews[0]?.id
+    ?? "command";
   const requestedTeamSection = searchParams.get("teamSection");
   const teamSection: TeamSection = d.owner && (requestedTeamSection === "earners" || requestedTeamSection === "evolution")
     ? requestedTeamSection
@@ -471,6 +472,16 @@ export default function AppIndex() {
               allowedDepartmentIds={d.allowedDepartmentIds}
               onPickDept={pickDept}
               onSelectModule={selectModuleFromBoard}
+              canAccessSecretVault={d.canAccessSecretVault}
+              onOpenTeam={() => changeView("team")}
+              onOpenPlatforms={() => changeView("platforms")}
+              modulePanel={<PriceConfigurator
+                isOwner={d.owner}
+                canRunModuleWorkflows={d.canRunModuleWorkflows}
+                activeModules={d.activeModules}
+                selectedModules={selectedModules}
+                onSelectedModulesChange={setSelectedModules}
+              />}
             />
           )}
           {view === "board" && (

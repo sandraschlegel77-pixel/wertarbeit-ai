@@ -448,6 +448,16 @@ model ShopSettings {
   updatedAt             DateTime @updatedAt
 }
 
+model OwnerVaultSecret {
+  id         String   @id @default(uuid())
+  shop       String
+  label      String
+  ciphertext String
+  createdAt  DateTime @default(now())
+
+  @@index([shop, createdAt])
+}
+
 /// Inhaberwünsche. Rohtexte werden vor Speicherung auf Zugangsdaten geprüft und bereinigt.
 model OwnerDirective {
   id                  String    @id @default(uuid())

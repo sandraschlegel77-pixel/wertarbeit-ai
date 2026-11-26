@@ -114,6 +114,19 @@ test("cloud requests use only zero-price free models and fall back when unavaila
   assert.match(fallback.failures[0], /HTTP_429/);
 });
 
+test("local-only workflow bypasses configured cloud providers and still writes its audit", async () => {
+  process.env.OWNER_SHOP_DOMAIN = owner;
+  process.env.AI_CLOUD_ENABLED = "true";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_MODEL = "provider/model:free";
+  global.fetch = () => { throw new Error("local-only workflow made a network request"); };
+  rows = [];
+  const result = await runModuleWorkflow(owner, "m1", { localOnly: true });
+  assert.equal(result.provider, "local");
+  assert.equal(result.auditLogId, "log-id");
+  assert.equal(rows[1].status, "completed");
+});
+
 test("invalid or unauthorized modules, pause and audit failure prevent execution", async () => {
   process.env.AI_CLOUD_ENABLED = "false";
   rows = [];

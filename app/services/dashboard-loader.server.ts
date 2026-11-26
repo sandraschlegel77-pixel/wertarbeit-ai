@@ -16,6 +16,7 @@ import { getAccessibleDepartmentIds, moduleIdsFromSubscription, OWNER_MODULE_IDS
 import { getRecentLiveConnectionTraces } from "./live-connection.server";
 import { isApprovalException } from "./approval-exceptions";
 import { isConfiguredOwnerShop } from "./access-control-core";
+import { canAccessOwnerVault } from "./owner-vault.server";
 
 import type { ShopifyAdmin } from "./admin-types";
 import type { EarningsSummary } from "./agent-types";
@@ -214,6 +215,7 @@ export async function loadDashboard(shop: string, admin: Admin) {
     shop,
     owner,
     canRunModuleWorkflows: isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN),
+    canAccessSecretVault: canAccessOwnerVault(shop),
     paused,
     executivePulse: owner ? executivePulse : [],
     preparationDesk: visiblePreparationDesk,

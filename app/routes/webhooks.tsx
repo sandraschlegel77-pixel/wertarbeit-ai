@@ -23,6 +23,7 @@ async function deleteAllShopData(shop: string) {
     db.capturedReward.deleteMany({ where: { shop } }),
     db.judicialDecisionLedger.deleteMany({ where: { shop } }),
     db.shopSettings.deleteMany({ where: { shop } }),
+    db.ownerVaultSecret.deleteMany({ where: { shop } }),
     db.aiKnowledgeMemory.deleteMany({ where: { shop } }),
     db.precomputedCache.deleteMany({ where: { shop } }),
     db.shopSubscription.deleteMany({ where: { shop } }),

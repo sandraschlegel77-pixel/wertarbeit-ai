@@ -1,4 +1,4 @@
-import { createDecipheriv } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { isFreeOpenRouterModel, maskPiiForExternalModel, ZERO_PRICE_PROVIDER } from "./ai-provider-router-core";
 
 export type AetherionMessage = {
@@ -85,19 +85,32 @@ export async function queryAetherionCascade(
 }
 
 /** Layout: 12 Byte IV | 16 Byte AuthTag | Ciphertext (Base64), AES-256-GCM. */
+export function encryptVaultBlob(plaintext: string, masterKeyHex: string, context?: string): string {
+  if (!/^[a-f\d]{64}$/i.test(masterKeyHex)) {
+    throw new Error("VAULT_KEY_INVALID: 32 Byte (64 Hex-Zeichen) erwartet");
+  }
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", Buffer.from(masterKeyHex, "hex"), iv);
+  if (context !== undefined) cipher.setAAD(Buffer.from(context, "utf8"));
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString("base64");
+}
+
 export function decryptVaultBlob(
   encryptedBase64: string,
   masterKeyHex: string,
+  context?: string,
 ): string {
-  const key = Buffer.from(masterKeyHex, "hex");
-  if (key.length !== 32) {
+  if (!/^[a-f\d]{64}$/i.test(masterKeyHex)) {
     throw new Error("VAULT_KEY_INVALID: 32 Byte (64 Hex-Zeichen) erwartet");
   }
+  const key = Buffer.from(masterKeyHex, "hex");
   const blob = Buffer.from(encryptedBase64, "base64");
   if (blob.length < 28) {
     throw new Error("VAULT_BLOB_INVALID");
   }
   const decipher = createDecipheriv("aes-256-gcm", key, blob.subarray(0, 12));
+  if (context !== undefined) decipher.setAAD(Buffer.from(context, "utf8"));
   decipher.setAuthTag(blob.subarray(12, 28));
   return Buffer.concat([
     decipher.update(blob.subarray(28)),
