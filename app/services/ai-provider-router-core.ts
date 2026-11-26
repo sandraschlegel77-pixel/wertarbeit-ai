@@ -1,5 +1,13 @@
 const PII_REPLACEMENT = "[DATENSCHUTZ-REDAKTIERT]";
 
+export function isFreeOpenRouterModel(model: string): boolean {
+  return model === "openrouter/free" || /^[a-z0-9._-]+\/[a-z0-9._-]+:free$/.test(model);
+}
+
+export const ZERO_PRICE_PROVIDER = {
+  max_price: { prompt: "0", completion: "0", request: "0", image: "0", audio: "0" },
+} as const;
+
 export function maskPiiForExternalModel(input: string): string {
   return input
     .replace(/("(?:fullName|firstName|lastName|customerName|email|phone|telephone|address|street|postalCode|zipCode|iban)"\s*:\s*")[^"]*(")/gi, `$1${PII_REPLACEMENT}$2`)

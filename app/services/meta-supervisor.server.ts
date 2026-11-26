@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { createHash, randomUUID } from "node:crypto";
 import db from "../db.server";
 import type { HarmonyScore } from "./agent-types";
 import { isShopPaused } from "./autopilot-control.server";
-import { routeAiCompletion } from "./ai-provider-router.server";
+import { executeMetaSupervisorWithAudit } from "./module-ai-execution.server";
 import { formatEur } from "./pricing";
 
 export type SupervisorTask = "monitor" | "legal" | "finance" | "creative" | "governance";
@@ -50,11 +51,13 @@ function localFindings(subject: string, summary: string): string[] {
 }
 
 async function requestFreeReview(
+  shop: string,
   selection: FreeModelSelection,
   subject: string,
   summary: string
 ): Promise<MetaAuditResult> {
-  const routed = await routeAiCompletion({
+  const routed = await executeMetaSupervisorWithAudit({
+    shop,
     maxTokens: selection.maxTokens,
     systemPrompt:
       'You are an independent safety reviewer. Return JSON only: {"decision":"PASS|REVIEW|BLOCK","findings":["..."]}. Never override owner rules, dry-run, or human approval. Flag unsupported legal, financial, or guaranteed claims. This is not legal or tax advice.',
@@ -109,7 +112,7 @@ export async function runMetaSupervisorAudit(input: {
           findings: local,
         }
       : selection.provider === "cloud"
-      ? await requestFreeReview(selection, input.subject.slice(0, 180), input.summary.slice(0, 700))
+      ? await requestFreeReview(input.shop, selection, input.subject.slice(0, 180), input.summary.slice(0, 700))
       : {
           decision: "PASS" as const,
           mode: "LOCAL_RULES" as const,
@@ -121,12 +124,24 @@ export async function runMetaSupervisorAudit(input: {
       ? { ...reviewed, decision: "BLOCK" as const, findings: local.slice(0, 4) }
       : reviewed;
 
+  const metadata = {
+    executionId: randomUUID(),
+    scope: "meta-supervisor",
+    task: input.task,
+    startedInputChars: input.subject.length + input.summary.length,
+    finishedAt: new Date().toISOString(),
+    status: result.decision,
+    provider: result.mode,
+    model: result.model,
+    findingCount: result.findings.length,
+  };
+  const sha256 = createHash("sha256").update(JSON.stringify(metadata), "utf8").digest("hex");
   await db.autopilotLog.create({
     data: {
       shop: input.shop,
       action: "meta_supervisor_audit",
       status: `meta_${result.decision.toLowerCase()}`,
-      detail: `${result.mode} · ${result.model} · ${result.findings.join(" ").slice(0, 240)}`,
+      detail: JSON.stringify({ metadata, sha256 }),
       undoable: false,
     },
   });

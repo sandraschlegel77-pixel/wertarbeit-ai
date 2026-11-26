@@ -1,4 +1,5 @@
 import { createDecipheriv } from "node:crypto";
+import { isFreeOpenRouterModel, maskPiiForExternalModel, ZERO_PRICE_PROVIDER } from "./ai-provider-router-core";
 
 export type AetherionMessage = {
   role: "system" | "user" | "assistant";
@@ -6,14 +7,13 @@ export type AetherionMessage = {
 };
 
 export const AETHERION_FALLBACK_MODELS = [
-  "groq/llama-3.3-70b-versatile",
-  "google-ai-studio/gemini-2.0-flash",
   "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-  "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "openrouter/openrouter/free",
 ] as const;
 
 export async function queryAetherionCascade(
   messages: AetherionMessage[],
+  maxTokens = 220,
 ): Promise<{ model: string; content: string }> {
   if (process.env.AETHERION_CASCADE_ENABLED !== "true") {
     throw new Error("AETHERION_CASCADE_LOCKED");
@@ -24,10 +24,26 @@ export async function queryAetherionCascade(
     throw new Error("AETHERION_CASCADE_NOT_CONFIGURED");
   }
 
-  const url = `${baseUrl.replace(/\/+$/, "")}/compat/chat/completions`;
+  let gateway: URL;
+  try {
+    gateway = new URL(baseUrl);
+  } catch {
+    throw new Error("AETHERION_GATEWAY_URL_INVALID");
+  }
+  if (
+    gateway.protocol !== "https:" ||
+    gateway.hostname !== "gateway.ai.cloudflare.com" ||
+    gateway.username || gateway.password || gateway.port || gateway.search || gateway.hash
+  ) {
+    throw new Error("AETHERION_GATEWAY_URL_INVALID");
+  }
+  const url = `${gateway.href.replace(/\/+$/, "")}/compat/chat/completions`;
   const errors: string[] = [];
 
   for (const model of AETHERION_FALLBACK_MODELS) {
+    if (!model.startsWith("openrouter/") || !isFreeOpenRouterModel(model.slice("openrouter/".length))) {
+      throw new Error("AETHERION_MODEL_NOT_FREE");
+    }
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -35,7 +51,18 @@ export async function queryAetherionCascade(
           "Content-Type": "application/json",
           "cf-aig-authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ model, messages, temperature: 0.3 }),
+        body: JSON.stringify({
+          model,
+          messages: messages.map(({ role, content }) => ({
+            role,
+            content: maskPiiForExternalModel(content).slice(0, role === "system" ? 4_000 : 8_000),
+          })),
+          temperature: 0.3,
+          max_tokens: maxTokens,
+          provider: ZERO_PRICE_PROVIDER,
+        }),
+        signal: AbortSignal.timeout(6_000),
+        redirect: "error",
       });
       if (!response.ok) {
         errors.push(`${model}: HTTP ${response.status}`);
@@ -50,10 +77,8 @@ export async function queryAetherionCascade(
         continue;
       }
       return { model, content };
-    } catch (error) {
-      errors.push(
-        `${model}: ${error instanceof Error ? error.message : "Netzwerkfehler"}`,
-      );
+    } catch {
+      errors.push(`${model}: Netzwerk- oder Antwortfehler`);
     }
   }
   throw new Error(`AETHERION_CASCADE_FAILED: ${errors.join("; ")}`);
