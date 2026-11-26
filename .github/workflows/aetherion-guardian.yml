@@ -53,9 +53,6 @@ jobs:
           b1 = os.environ.get("BACKUP1_STATUS", "000")
           e = os.environ.get("EDGE_STATUS", "000")
 
-          if not token or not chat_id:
-              raise SystemExit("Fehlender TELEGRAM_BOT_TOKEN oder TELEGRAM_CHAT_ID in GitHub Secrets.")
-
           if p != "200" or e != "200":
               msg = (
                   f"🚨 RESCUE-112 ALARM // AETHERION OMEGA\n"
