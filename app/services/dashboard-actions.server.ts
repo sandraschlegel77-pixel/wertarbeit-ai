@@ -25,6 +25,7 @@ import { JudicialLedgerInputError, appendJudicialDecision } from "./judicial-sys
 import { saveShopBrandSettings, ShopSettingsInputError } from "./shop-settings.server";
 import { ShopAccessDeniedError } from "./access-control.server";
 import { submitOwnerDirective } from "./owner-directive.server";
+import { runModuleWorkflow } from "./module-workflows.server";
 import {
   MarketplaceWishInputError,
   setWorkspaceChannelVisibility,
@@ -350,6 +351,32 @@ export async function handleDashboardAction(opts: { shop: string; admin: Admin; 
   }
 
   // --- Mitarbeiter ausführen ---
+  if (type === "run_module_workflow") {
+    try {
+      const result = await runModuleWorkflow(shop, str(form, "moduleId"));
+      return {
+        ok: result.ok,
+        message: result.text
+          ? `Ungeprüfter Entwurf; keine externe Aktion ausgeführt: ${result.text}`
+          : "Modul-Entwurf nicht verfügbar.",
+        moduleId: result.moduleId,
+        provider: result.provider,
+        failures: result.failures,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message === "AI_MODULE_INVALID") {
+        return { ok: false, message: "Ungültiges Modul." };
+      }
+      if (error instanceof Error && error.message === "AI_MODULE_SUBSCRIPTION_UNVERIFIED") {
+        return { ok: false, message: "Modul-Workflows sind nur für explizit konfigurierte Inhaber-Shops verfügbar; Subscriber-Abos sind noch nicht verifizierbar." };
+      }
+      if (error instanceof Error && error.message === "GLOBAL_AI_PAUSE") {
+        return { ok: false, message: "Die KI-Notfallpause ist aktiv; der Modul-Workflow wurde nicht ausgeführt." };
+      }
+      throw error;
+    }
+  }
+
   if (type === "run_agent") {
     const n = Number(str(form, "agent"));
     if (!Number.isInteger(n) || n < 1) return { ok: false, message: "Ungültige Mitarbeiter-Nummer." };
