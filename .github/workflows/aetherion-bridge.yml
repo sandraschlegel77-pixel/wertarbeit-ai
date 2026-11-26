@@ -1,0 +1,22 @@
+name: AETHERION Bridge // Approved Action Check
+
+on:
+  repository_dispatch:
+    types: [aetherion_approved_action]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run build
