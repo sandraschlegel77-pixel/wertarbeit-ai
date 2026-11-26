@@ -34,8 +34,8 @@ const db = {
     async count({ where }) { return rows.filter((row) => row.shop === where.shop).length; },
     async create({ data }) { rows.push({ ...data, createdAt: new Date() }); },
     async findMany({ where, select }) {
-      assert.deepEqual(select, { id: true, label: true, createdAt: true });
-      return rows.filter((row) => row.shop === where.shop).map(({ id, label, createdAt }) => ({ id, label, createdAt }));
+      assert.deepEqual(select, { id: true, label: true, ciphertext: true, createdAt: true });
+      return rows.filter((row) => row.shop === where.shop).map(({ id, label, ciphertext, createdAt }) => ({ id, label, ciphertext, createdAt }));
     },
     async deleteMany({ where }) {
       const before = rows.length;
@@ -61,7 +61,8 @@ Module._load = function (request, parent, isMain) {
 };
 const service = require("../app/services/owner-vault.server.ts");
 const route = require("../app/routes/api.owner-vault.ts");
-const { decryptVaultBlob } = require("../app/services/aetherion-vault.server.ts");
+const { decryptVaultBlob, encryptVaultBlob } = require("../app/services/aetherion-vault.server.ts");
+const { parseOwnerVaultRecord } = require("../app/services/owner-vault-record.ts");
 Module._load = originalLoad;
 
 const originalOwner = process.env.OWNER_SHOP_DOMAIN;
@@ -123,8 +124,9 @@ test("vault stores authenticated ciphertext and returns only shop-scoped masked-
   assert.doesNotMatch(await response.text(), /example-test-value/);
   assert.equal(rows.length, 1);
   assert.notEqual(rows[0].ciphertext, secret);
-  assert.equal(decryptVaultBlob(rows[0].ciphertext, process.env.AETHERION_VAULT_KEY, `${owner}:${rows[0].id}`), secret);
-  assert.throws(() => decryptVaultBlob(rows[0].ciphertext, process.env.AETHERION_VAULT_KEY, `${otherOwner}:${rows[0].id}`));
+  assert.equal(parseOwnerVaultRecord(decryptVaultBlob(rows[0].ciphertext.slice(3), process.env.AETHERION_VAULT_KEY, `${owner}:${rows[0].id}:v1`), "Test API", true).secret, secret);
+  assert.throws(() => decryptVaultBlob(rows[0].ciphertext.slice(3), process.env.AETHERION_VAULT_KEY, `${otherOwner}:${rows[0].id}:v1`));
+  assert.throws(() => decryptVaultBlob(rows[0].ciphertext.slice(3), process.env.AETHERION_VAULT_KEY, `${owner}:${rows[0].id}`));
   const list = await route.loader({ request: new Request("https://example.invalid/api/owner-vault") });
   assert.equal(list.headers.get("cache-control"), "no-store");
   const text = await list.text();
@@ -138,6 +140,59 @@ test("vault stores authenticated ciphertext and returns only shop-scoped masked-
   sessionShop = owner;
   assert.equal((await route.action({ request: request({ type: "delete", id: rows[0].id }) })).status, 200);
   assert.equal(rows.length, 0);
+});
+
+test("structured metadata and unicode secrets round-trip without exposing the secret", async () => {
+  rows = [];
+  sessionShop = owner;
+  const secret = "  Schlüssel-ä🔑  ";
+  const response = await route.action({ request: request({
+    type: "save", label: "Beta Zugang", value: secret, provider: "openrouter",
+    category: "Beta & Experimentell", stage: "experimental", username: "Jürgen",
+    notes: "Überprüfung", modelHint: "openrouter/free", favorite: "on", expiresAt: "2027-01-31",
+  }) });
+  assert.equal(response.status, 200);
+  const raw = decryptVaultBlob(rows[0].ciphertext.slice(3), process.env.AETHERION_VAULT_KEY, `${owner}:${rows[0].id}:v1`);
+  const record = parseOwnerVaultRecord(raw, "Beta Zugang", true);
+  assert.equal(record.secret, secret.trim());
+  assert.equal(record.notes, "Überprüfung");
+  const result = await (await route.loader({ request: new Request("https://example.invalid/api/owner-vault") })).json();
+  assert.equal(result.entries[0].stage, "experimental");
+  assert.equal(result.entries[0].username, "Jürgen");
+  assert.equal(result.entries[0].favorite, true);
+  assert.doesNotMatch(JSON.stringify(result), /Schlüssel|ciphertext/);
+  rows = [];
+});
+
+test("legacy plaintext values and JSON-like values remain readable after decryption", async () => {
+  const id = "550e8400-e29b-41d4-a716-446655440000";
+  const legacy = '{"secret":"altes Passwort"}';
+  rows = [{ id, shop: owner, label: "Alt", ciphertext: encryptVaultBlob(legacy, process.env.AETHERION_VAULT_KEY, `${owner}:${id}`), createdAt: new Date() }];
+  const listing = await service.listOwnerVaultSecrets(owner);
+  assert.equal(listing.entries[0].label, "Alt");
+  assert.equal(listing.entries[0].stage, "production");
+  assert.equal(parseOwnerVaultRecord(legacy, "Alt", false).secret, legacy);
+  assert.equal(parseOwnerVaultRecord("atelierpilot-vault-record-v1:{broken", "Alt", false).secret, "atelierpilot-vault-record-v1:{broken");
+  rows = [];
+});
+
+test("invalid metadata and dates fail without storing entries", async () => {
+  assert.equal((await route.action({ request: request({ type: "save", label: "Test", value: "placeholder", stage: "untrusted" }) })).status, 400);
+  assert.equal((await route.action({ request: request({ type: "save", label: "Test", value: "placeholder", expiresAt: "2026-02-31" }) })).status, 400);
+  assert.equal((await route.action({ request: request({ type: "save", label: "Test", value: "  ", provider: "groq" }) })).status, 400);
+  assert.equal(rows.length, 0);
+});
+
+test("all supported stages survive encryption and custom passwords preserve whitespace", async () => {
+  for (const stage of ["production", "beta", "experimental", "test"]) {
+    const response = await route.action({ request: request({ type: "save", label: `Stufe ${stage}`, value: "  ü 🔑  ", stage }) });
+    assert.equal(response.status, 200);
+  }
+  const listing = await service.listOwnerVaultSecrets(owner);
+  assert.deepEqual(listing.entries.map((entry) => entry.stage), ["production", "beta", "experimental", "test"]);
+  const record = parseOwnerVaultRecord(decryptVaultBlob(rows[0].ciphertext.slice(3), process.env.AETHERION_VAULT_KEY, `${owner}:${rows[0].id}:v1`), rows[0].label, true);
+  assert.equal(record.secret, "  ü 🔑  ");
+  rows = [];
 });
 
 test("missing keys and invalid inputs fail without writing a secret", async () => {

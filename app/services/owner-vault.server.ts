@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { ZodError } from "zod";
 import db from "../db.server";
 import { isConfiguredOwnerShop } from "./access-control-core";
-import { encryptVaultBlob } from "./aetherion-vault.server";
+import { decryptVaultBlob, encryptVaultBlob } from "./aetherion-vault.server";
+import { createOwnerVaultRecord, OwnerVaultRecordValidationError, parseOwnerVaultRecord, serializeOwnerVaultRecord, type OwnerVaultDetailsInput } from "./owner-vault-record";
 
 export function canAccessOwnerVault(shop: string): boolean {
   return isConfiguredOwnerShop(shop, process.env.OWNER_SHOP_DOMAIN);
@@ -9,6 +11,7 @@ export function canAccessOwnerVault(shop: string): boolean {
 
 export class OwnerVaultInputError extends Error {}
 
+const RECORD_PREFIX = "v1:";
 let vaultTableReady: Promise<void> | undefined;
 
 export function ensureVaultTable(): Promise<void> {
@@ -54,17 +57,44 @@ export async function listOwnerVaultSecrets(shop: string) {
   await ensureVaultTable();
   const entries = await db.ownerVaultSecret.findMany({
     where: { shop },
-    select: { id: true, label: true, createdAt: true },
+    select: { id: true, label: true, ciphertext: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+  const keyConfigured = /^[a-f\d]{64}$/i.test(process.env.AETHERION_VAULT_KEY ?? "");
   return {
-    keyConfigured: /^[a-f\d]{64}$/i.test(process.env.AETHERION_VAULT_KEY ?? ""),
-    entries: entries.map((entry) => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
+    keyConfigured,
+    entries: entries.map((entry) => {
+      const { ciphertext, ...metadata } = entry;
+      if (!keyConfigured) return { ...metadata, createdAt: entry.createdAt.toISOString() };
+      const structured = ciphertext.startsWith(RECORD_PREFIX);
+      const record = parseOwnerVaultRecord(
+        decryptVaultBlob(
+          structured ? ciphertext.slice(RECORD_PREFIX.length) : ciphertext,
+          key(),
+          `${shop}:${entry.id}${structured ? ":v1" : ""}`,
+        ),
+        entry.label,
+        structured,
+      );
+      return {
+        ...metadata,
+        provider: record.provider,
+        category: record.category,
+        stage: record.stage,
+        username: record.username,
+        url: record.url,
+        modelHint: record.modelHint,
+        notes: record.notes,
+        expiresAt: record.expiresAt,
+        favorite: record.favorite,
+        createdAt: entry.createdAt.toISOString(),
+      };
+    }),
   };
 }
 
-export async function saveOwnerVaultSecret(shop: string, label: string, value: string) {
+export async function saveOwnerVaultSecret(shop: string, label: string, value: string, details?: OwnerVaultDetailsInput) {
   requireAccess(shop);
   const name = label.trim();
   if (!/^[\p{L}\p{N} ._()-]{1,60}$/u.test(name)) {
@@ -73,8 +103,17 @@ export async function saveOwnerVaultSecret(shop: string, label: string, value: s
   if (!value || Buffer.byteLength(value, "utf8") > 8192) {
     throw new OwnerVaultInputError("Bitte einen geheimen Wert mit höchstens 8192 Byte eingeben.");
   }
+  let serialized: string;
+  try {
+    serialized = serializeOwnerVaultRecord(createOwnerVaultRecord(name, value, details));
+  } catch (error) {
+    if (error instanceof ZodError || error instanceof OwnerVaultRecordValidationError) {
+      throw new OwnerVaultInputError("Ungültige Tresordaten. Bitte Angaben und Länge prüfen.");
+    }
+    throw error;
+  }
   const id = randomUUID();
-  const ciphertext = encryptVaultBlob(value, key(), `${shop}:${id}`);
+  const ciphertext = RECORD_PREFIX + encryptVaultBlob(serialized, key(), `${shop}:${id}:v1`);
   await ensureVaultTable();
   await db.$transaction(async (tx) => {
     if (await tx.ownerVaultSecret.count({ where: { shop } }) >= 100) {

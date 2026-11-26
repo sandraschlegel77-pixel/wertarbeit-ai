@@ -34,7 +34,23 @@ export async function action({ request }: ActionFunctionArgs) {
       const label = form.get("label");
       const value = form.get("value");
       if (typeof label !== "string" || typeof value !== "string") throw new OwnerVaultInputError("Ungültige Eingabe.");
-      await saveOwnerVaultSecret(session.shop, label, value);
+      const field = (name: string, fallback = "") => {
+        const result = form.get(name);
+        if (result === null) return fallback;
+        if (typeof result !== "string") throw new OwnerVaultInputError("Ungültige Eingabe.");
+        return result;
+      };
+      await saveOwnerVaultSecret(session.shop, label, value, {
+        provider: field("provider", "custom"),
+        category: field("category", "Sichere Notizen"),
+        stage: field("stage", "production"),
+        username: field("username"),
+        url: field("url"),
+        modelHint: field("modelHint"),
+        notes: field("notes"),
+        expiresAt: field("expiresAt"),
+        favorite: field("favorite") === "on",
+      });
     } else if (type === "delete") {
       const id = form.get("id");
       if (typeof id !== "string") throw new OwnerVaultInputError("Ungültiger Tresoreintrag.");
